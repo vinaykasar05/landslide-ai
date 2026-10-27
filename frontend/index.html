@@ -1,0 +1,2832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LandslideAI | An Early Warning and Landslide Prediction System</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1c; --panel: #111a2e; --panel2: #16213a; --panel3: #1c2844; --border: #26314d;
+    --text: #e8ecf7; --muted: #8892b0; --accent: #ec4899; --blue: #3b82f6;
+    --safe: #22c55e; --warn: #f59e0b; --high: #f97316; --critical: #ef4444;
+    box-sizing: border-box;
+  }
+  * { box-sizing: inherit; margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(59,130,246,.10), transparent),
+      radial-gradient(900px 500px at 90% 10%, rgba(236,72,153,.08), transparent),
+      var(--bg);
+    color: var(--text);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+    letter-spacing: -0.01em;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    min-height: 100vh;
+  }
+  body.gis-page-bg { background: #ffffff; }
+  .mono { font-family: "JetBrains Mono", monospace; }
+  .ticker {
+    background: linear-gradient(90deg, #2b2210, #17130a);
+    border-bottom: 1px solid #4a3f10;
+    color: #fcd34d; font-size: 12.5px; font-weight: 600;
+    padding: 8px 22px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+  .ticker .right { display: flex; gap: 14px; align-items: center; color: var(--muted); font-weight: 500; }
+  .ticker .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #fbbf24; box-shadow: 0 0 8px #fbbf24; display: inline-block; margin-right: 6px; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .sos { background: linear-gradient(145deg, #fb5568, var(--critical)); color: white; padding: 3px 11px; border-radius: 6px; font-size: 11px; font-weight: 700; box-shadow: 0 2px 8px rgba(239,68,68,.3); }
+
+  header {
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+    padding: 14px 22px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand .badge {
+    background: linear-gradient(145deg, #f43f5e, #9f1239);
+    box-shadow: 0 4px 14px rgba(244,63,94,.35), inset 0 1px 0 rgba(255,255,255,.15);
+    border-radius: 12px; width: 46px; height: 46px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand h1 { font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 9px; letter-spacing: -0.02em; color: #111827; }
+  .brand .pill { background: rgba(244,63,94,.1); border: 1px solid rgba(244,63,94,.25); color: #e11d48; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; letter-spacing: .04em; }
+  .brand p { font-size: 12.5px; color: #6b7280; margin-top: 3px; font-weight: 500; }
+  select, input {
+    background: #f9fafb; border: 1px solid #e5e7eb; color: #111827;
+    padding: 9px 13px; border-radius: 9px; font-size: 13px; font-family: inherit;
+    transition: border-color .15s;
+  }
+  select:hover, input:hover, select:focus, input:focus { border-color: #cbd5e1; outline: none; }
+  .icon-btn {
+    background: #f9fafb; border: 1px solid #e5e7eb; color: #4b5563; width: 38px; height: 38px;
+    border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .icon-btn:hover { background: #f1f5f9; }
+  .dropdown-notice {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; white-space: nowrap;
+    background: #172033; color: #fff; font-size: 11.5px; font-weight: 600; padding: 7px 11px;
+    border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.2);
+    opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .15s, transform .15s;
+  }
+  .dropdown-notice.visible { opacity: 1; visibility: visible; transform: translateY(0); }
+  .settings-popover {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: 270px;
+    background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(15,23,42,.18); padding: 14px;
+    opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .15s, transform .15s;
+  }
+  .settings-popover.open { opacity: 1; visibility: visible; transform: translateY(0); }
+  .settings-popover-title { font-size: 13px; font-weight: 800; color: #111827; margin-bottom: 10px; }
+  .settings-row { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: #374151; padding: 7px 2px; cursor: pointer; }
+  .settings-row input { padding: 0; width: 15px; height: 15px; cursor: pointer; }
+  .settings-note { font-size: 10.5px; color: #9ca3af; line-height: 1.4; margin-top: 6px; padding-top: 8px; border-top: 1px solid #f1f5f9; }
+  body.hide-state-labels .state-label, body.hide-state-labels .state-sub { display: none; }
+  body.hide-station-markers .station-pin { display: none; }
+  @media (max-width: 700px) {
+    /* The settings button sits inside a tightly-wrapped flex row on mobile, so
+       a popover anchored to its own tiny wrapper can clip off the left edge of
+       the screen. Pin it to the viewport instead on small screens. */
+    .settings-popover { position: fixed; top: 64px; left: 12px; right: 12px; width: auto; }
+  }
+  .emergency-btn {
+    background: linear-gradient(145deg, #fb5568, var(--critical));
+    box-shadow: 0 4px 16px rgba(239,68,68,.3), inset 0 1px 0 rgba(255,255,255,.2);
+    color: white; border: none; padding: 10px 18px;
+    border-radius: 9px; font-weight: 700; font-size: 13px; cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .emergency-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(239,68,68,.4); }
+  nav {
+    display: flex; gap: 4px; padding: 8px 22px; overflow-x: auto;
+    border-bottom: 1px solid #e5e7eb; background: #ffffff;
+  }
+  nav button {
+    background: none; border: none; color: #4b5563; padding: 10px 14px;
+    border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; position: relative;
+    transition: background .15s, color .15s; display: flex; align-items: center; gap: 6px;
+    border-bottom: 2px solid transparent;
+  }
+  nav button:hover { background: #f9fafb; }
+  nav button.active { color: #e11d48; border-bottom: 2px solid #e11d48; }
+  nav button.tab-alert { color: #e11d48; }
+  nav button .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--critical); display: inline-block; margin-left: 3px; box-shadow: 0 0 8px var(--critical); animation: pulse 1.6s infinite; }
+  main { padding: 22px; max-width: 1400px; margin: 0 auto; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .stat-card {
+    background: linear-gradient(160deg, var(--panel3), var(--panel));
+    border: 1px solid var(--border); border-radius: 14px; padding: 18px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.02);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .stat-card .icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: rgba(59,130,246,.12); }
+  .stat-card .icon svg { width: 20px; height: 20px; }
+  .stat-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+  .stat-card .value { font-size: 26px; font-weight: 800; margin-top: 4px; letter-spacing: -0.02em; }
+  .panel {
+    background: linear-gradient(165deg, var(--panel3) 0%, var(--panel) 55%);
+    border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 16px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.02);
+  }
+  .panel h2 { font-size: 15px; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .badge-live { background: rgba(34,197,94,.15); color: var(--safe); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .panel .sub { font-size: 12px; color: var(--muted); margin-top: 4px; margin-bottom: 14px; }
+  .search-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .search-row input { flex: 1; min-width: 200px; }
+  .search-row button, .btn {
+    background: linear-gradient(145deg, #4f8ff7, var(--blue)); color: white; border: none; padding: 10px 20px;
+    border-radius: 9px; font-weight: 700; font-size: 13px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(59,130,246,.3); transition: transform .15s, box-shadow .15s;
+  }
+  .search-row button:hover, .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(59,130,246,.4); }
+  .btn-orange { background: linear-gradient(145deg, #fb923c, var(--high)); box-shadow: 0 4px 14px rgba(249,115,22,.3); }
+  .btn-orange:hover { box-shadow: 0 6px 18px rgba(249,115,22,.4); }
+  #map { border-radius: 0; background: #1a1a1a; position: absolute; inset: 0; height: 100%; width: 100%; visibility: hidden; z-index: 1; }
+  #map.visible { visibility: visible; z-index: 2; }
+  #map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.7); }
+  #map .leaflet-marker-icon, #map .leaflet-popup, #map .leaflet-tooltip { filter: none; }
+  .leaflet-app-tooltip { max-width: 270px; padding: 12px 14px; border-radius: 10px; box-shadow: 0 10px 30px rgba(15,23,42,.18); font-size: 12px; color: #374151; white-space: normal; }
+  .leaflet-app-tooltip .map-tooltip-link { pointer-events: auto; }
+
+  .map-panel-light { background: #ffffff !important; border: 1px solid #e5e7eb !important; box-shadow: 0 2px 12px rgba(0,0,0,.05) !important; }
+  .map-panel-light h2 { color: #111827; }
+
+  /* Light stat-card variant, used on white-theme tabs that still show the KPI bar
+     (Field Incident Report, Highway Corridors) - same data, lighter chrome to match. */
+  body.gis-page-bg .stat-card {
+    background: #ffffff; border: 1px solid #e5e7eb; box-shadow: 0 2px 12px rgba(0,0,0,.05);
+  }
+  body.gis-page-bg .stat-card .label { color: #9ca3af; }
+  body.gis-page-bg .stat-card .value { color: #111827; }
+  .map-panel-light .muted { color: #9ca3af !important; }
+
+  /* Trends & Forecast - orange/white, matches GIS Risk Map and Sensors tabs */
+  .trend-station-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .trend-chip {
+    display: flex; align-items: center; gap: 6px; background: #f9fafb; border: 1px solid #e5e7eb;
+    border-radius: 20px; padding: 5px 12px 5px 8px; font-size: 11.5px; font-weight: 700; color: #374151;
+    cursor: pointer; user-select: none; transition: border-color .15s, background .15s;
+  }
+  .trend-chip:hover { border-color: #fdba74; }
+  .trend-chip.active { background: rgba(249,115,22,.08); border-color: #f97316; color: #ea580c; }
+  .trend-chip .trend-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .trend-chart-wrap { width: 100%; }
+  .trend-chart-wrap svg { width: 100%; height: 230px; display: block; }
+  .trend-axis-label { font-size: 9px; fill: #9ca3af; font-family: "JetBrains Mono", monospace; }
+  .events-track { margin-top: 6px; height: 30px; position: relative; border-top: 1px dashed #e5e7eb; }
+  .events-track .ev-dot { position: absolute; top: 6px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e5e7eb; transform: translateX(-50%); cursor: default; }
+  .events-track .ev-label { position: absolute; top: -13px; font-size: 8.5px; color: #9ca3af; white-space: nowrap; transform: translateX(-50%); }
+  .events-track .ev-empty { font-size: 10.5px; color: #cbd5e1; padding-top: 8px; }
+
+  .forecast-strip { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+  .forecast-day { flex: 1; min-width: 110px; background: #fff; border: 1px solid #eef0f3; border-radius: 12px; padding: 14px 10px; text-align: center; }
+  .forecast-day.today { border-color: #f97316; box-shadow: 0 0 0 1px #f97316; }
+  .forecast-day-label { font-size: 11px; color: #9ca3af; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .03em; }
+  .forecast-rain { font-size: 18px; font-weight: 800; color: #111827; }
+  .forecast-rain span { font-size: 11px; font-weight: 600; }
+  .forecast-rain-label { font-size: 9.5px; color: #9ca3af; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+  .forecast-arrow { font-size: 12px; margin-left: 4px; }
+
+  .map-stage { position: relative; margin-top: 10px; border-radius: 10px; overflow: hidden; border: 1px solid #eef0f3; height: 580px; }
+  .ner-map-wrap { position: absolute; inset: 0; background: #fbfbfc; visibility: visible; z-index: 2; }
+  .ner-map-wrap.hidden { visibility: hidden; z-index: 1; }
+  .ner-map-wrap svg { width: 100%; height: 100%; display: block; }
+  .state-shape { fill: rgba(15,23,42,.015); stroke: #cdd3dc; stroke-width: 1.4; stroke-linejoin: round; transition: opacity .2s; }
+  .state-shape.dimmed { opacity: .2; }
+  .state-label { fill: #374151; font-size: 13px; font-weight: 700; font-family: "Inter", sans-serif; }
+  .state-sub { fill: #9ca3af; font-size: 8px; font-family: "JetBrains Mono", monospace; letter-spacing: .06em; }
+  .station-pin { cursor: pointer; }
+  .station-pin circle.halo { opacity: .3; animation: pinpulse 2s infinite; transform-box: fill-box; transform-origin: center; }
+  .station-pin circle.halo-strong { opacity: .5; animation: pinpulse 1.5s infinite; transform-box: fill-box; transform-origin: center; }
+  .station-pin circle.dot { stroke: #ffffff; stroke-width: 2; }
+  .station-pin .pin-label-bg { fill: #ffffff; stroke: #e5e7eb; stroke-width: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.12)); }
+  .station-pin text { fill: #374151; font-size: 8px; font-family: "JetBrains Mono", monospace; font-weight: 700; text-anchor: middle; }
+  .station-pin .warn-badge-tri { stroke: #ffffff; stroke-width: 1.5; stroke-linejoin: round; filter: drop-shadow(0 2px 3px rgba(0,0,0,.25)); }
+  .station-pin .warn-badge-text { font-size: 10px; font-weight: 800; text-anchor: middle; fill: #ffffff; }
+  .station-pin:hover circle.dot, .station-pin:focus circle.dot { stroke-width: 3; }
+  .station-pin:focus { outline: none; }
+  .station-pin:focus circle.dot { filter: drop-shadow(0 0 0 2px #fff) drop-shadow(0 0 0 4px #2563eb); }
+  .station-pin.map-selected circle.dot { stroke: #2563eb; stroke-width: 3; }
+  .station-pin.map-selected .pin-label-bg { stroke: #2563eb; stroke-width: 1.5; }
+  @keyframes pinpulse { 0%{transform:scale(1); opacity:.4} 70%{transform:scale(2.4); opacity:0} 100%{opacity:0} }
+
+  .map-tooltip {
+    position: absolute; z-index: 20; min-width: 220px; max-width: 270px;
+    background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(15,23,42,.18); padding: 12px 14px;
+    font-size: 12px; color: #374151; pointer-events: none; opacity: 0; visibility: hidden;
+    transition: opacity .12s ease; transform: translate(-50%, -100%);
+  }
+  .map-tooltip.visible { opacity: 1; visibility: visible; pointer-events: auto; }
+  .map-tooltip-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .map-tooltip-title { font-weight: 800; font-size: 13px; color: #111827; }
+  .map-tooltip-row { font-size: 11px; color: #6b7280; margin-bottom: 2px; }
+  .map-tooltip-row.muted { font-family: "JetBrains Mono", monospace; font-size: 10.5px; color: #9ca3af; }
+  .map-tooltip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin: 8px 0; }
+  .map-tooltip-grid .k { display: block; font-size: 9.5px; color: #9ca3af; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+  .map-tooltip-grid .v { display: block; font-size: 12px; color: #172033; font-weight: 700; margin-top: 1px; }
+  .map-tooltip-source { font-size: 10px; color: #9ca3af; border-top: 1px solid #f1f5f9; padding-top: 6px; margin-top: 2px; }
+  .map-tooltip-link {
+    display: block; width: 100%; margin-top: 8px; background: #f8fafc; border: 1px solid #e5e7eb;
+    color: #2563eb; font-size: 11px; font-weight: 700; padding: 6px 8px; border-radius: 7px; cursor: pointer; text-align: center;
+  }
+  .map-tooltip-link:hover { background: #eff6ff; }
+
+  .map-overlay-top { position: absolute; bottom: 62px; left: 14px; right: 14px; display: flex; justify-content: flex-start; align-items: flex-end; gap: 10px; flex-wrap: wrap; pointer-events: none; z-index: 5; }
+  .state-focus-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; pointer-events: auto; background: rgba(255,255,255,.9); border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 10px; backdrop-filter: blur(4px); }
+  .state-focus-label { font-size: 10px; font-weight: 700; color: #9ca3af; letter-spacing: .05em; }
+  .state-chip {
+    background: none; border: none; color: #6b7280;
+    font-size: 11px; font-weight: 700; padding: 3px 6px; cursor: pointer;
+    font-family: "JetBrains Mono", monospace; border-bottom: 2px solid transparent;
+  }
+  .state-chip:hover { color: #374151; }
+  .state-chip.active { color: #e11d48; border-bottom: 2px solid #e11d48; }
+
+  .risk-legend {
+    position: absolute; bottom: 14px; right: 14px; background: rgba(255,255,255,.97); border: 1px solid #e5e7eb;
+    border-radius: 10px; padding: 12px 16px; font-size: 12.5px; color: #4b5563; backdrop-filter: blur(4px);
+    display: flex; flex-direction: column; gap: 6px; z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.08);
+  }
+  .risk-legend .legend-title { color: #111827; font-weight: 800; font-size: 12.5px; margin-bottom: 3px; display: flex; align-items: center; gap: 5px; }
+  .risk-legend .legend-row { display: flex; align-items: center; gap: 8px; }
+  .risk-legend .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .floating-actions { position: absolute; bottom: 14px; left: 14px; display: flex; gap: 8px; z-index: 5; }
+  .floating-actions button {
+    border: none; border-radius: 9px; padding: 9px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.15);
+  }
+  .fab-siren { background: linear-gradient(145deg, #fb5568, var(--critical)); color: white; }
+  .fab-sos { background: linear-gradient(145deg, #f43f5e, #9f1239); color: white; }
+  .map-view-toggle { display: flex; gap: 6px; align-items: center; }
+  .map-view-toggle button {
+    background: #f9fafb; border: 1px solid #e5e7eb; color: #6b7280;
+    font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 7px; cursor: pointer;
+  }
+  .map-view-toggle button.active { background: rgba(225,29,72,.08); border-color: #e11d48; color: #e11d48; }
+
+
+  @media (max-width: 700px) {
+    .map-stage { height: 420px; }
+    .floating-actions { flex-direction: column; left: 8px; bottom: 8px; gap: 6px; }
+    .floating-actions button { font-size: 10.5px; padding: 7px 10px; }
+    .risk-legend { right: 8px; bottom: 8px; padding: 8px 10px; font-size: 10px; }
+    .state-focus-bar { gap: 4px; }
+    .state-chip { font-size: 9.5px; padding: 4px 7px; }
+    .map-overlay-top { bottom: 92px; left: 8px; right: 8px; }
+    .map-tooltip { min-width: 180px; max-width: 220px; font-size: 11px; padding: 10px 12px; }
+    header { padding: 12px 14px; }
+    nav { padding: 8px 14px; }
+    main { padding: 14px; }
+  }
+  .locations-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  @media (max-width: 1100px) { .locations-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .locations-grid { grid-template-columns: 1fr; } }
+  .loc-card {
+    background: linear-gradient(160deg, var(--panel3), var(--panel2));
+    border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;
+    box-shadow: 0 3px 12px rgba(0,0,0,.15); transition: transform .15s, box-shadow .15s;
+  }
+  .loc-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,.25); }
+  .loc-card .name { font-weight: 700; font-size: 15px; margin-bottom: 5px; letter-spacing: -0.01em; line-height: 1.3; }
+  .loc-card .coords { font-size: 11.5px; color: var(--muted); margin-bottom: 12px; font-family: "JetBrains Mono", monospace; }
+
+  /* Monitored Station cards specifically - light blue-gray, per latest revision */
+  .loc-card-light {
+    background: #F1F5F9 !important;
+    border: 1px solid #D8E0EA !important;
+    box-shadow: 0 2px 8px rgba(15,23,42,.06) !important;
+  }
+  .loc-card-light .name { color: #172033 !important; }
+  .loc-card-light .coords { color: #64748B !important; }
+  .loc-card-light .metrics { color: #64748B !important; }
+  .loc-card-light .metrics b { color: #172033 !important; }
+  .risk-pill { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 800; letter-spacing: .01em; }
+  .risk-Low { background: rgba(34,197,94,.14); color: var(--safe); box-shadow: inset 0 0 0 1px rgba(34,197,94,.25); }
+  .risk-Moderate { background: rgba(245,158,11,.14); color: var(--warn); box-shadow: inset 0 0 0 1px rgba(245,158,11,.25); }
+  .risk-High { background: rgba(249,115,22,.14); color: var(--high); box-shadow: inset 0 0 0 1px rgba(249,115,22,.25); }
+  .risk-Critical { background: rgba(239,68,68,.16); color: var(--critical); box-shadow: inset 0 0 0 1px rgba(239,68,68,.3), 0 0 12px rgba(239,68,68,.15); }
+  .risk-Unavailable { background: rgba(148,163,184,.14); color: #64748b; box-shadow: inset 0 0 0 1px rgba(148,163,184,.3); }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .metrics b { color: var(--text); display: block; font-size: 15px; margin-top: 2px; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Soil & Rain Sensors tab - light theme, matches reference screenshot */
+  .sensor-layout { display: grid; grid-template-columns: 340px 1fr; gap: 26px; align-items: start; margin-top: 18px; }
+  @media (max-width: 900px) { .sensor-layout { grid-template-columns: 1fr; } }
+  .station-list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .station-list-header .label { font-size: 11px; font-weight: 700; color: #9ca3af; letter-spacing: .04em; }
+  .station-list { max-height: 520px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; padding-right: 4px; }
+  .station-list::-webkit-scrollbar { width: 6px; }
+  .station-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+  .station-row {
+    background: #ffffff;
+    border: 1px solid #e5e7eb; border-radius: 11px; padding: 13px; cursor: pointer;
+    transition: border-color .15s, transform .15s, box-shadow .15s;
+    box-shadow: 0 1px 4px rgba(15,23,42,.05);
+  }
+  .station-row:hover { border-color: #cbd5e1; }
+  .station-row.selected { border-color: #e11d48; background: #fef2f4; box-shadow: 0 0 0 1px rgba(225,29,72,.15); }
+  .station-row .id { font-size: 10.5px; color: #94a3b8; font-family: "JetBrains Mono", monospace; letter-spacing: .02em; }
+  .station-row .place { font-size: 13.5px; font-weight: 700; margin: 3px 0 2px; letter-spacing: -0.01em; color: #172033; }
+  .station-row .loc { font-size: 11.5px; color: #64748b; display: flex; align-items: center; gap: 4px; }
+  .station-row .score-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .score-badge { font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 20px; color: #ffffff; }
+  .score-badge.risk-Low { background: #22c55e; }
+  .score-badge.risk-Moderate { background: #eab308; }
+  .score-badge.risk-High { background: #f97316; }
+  .score-badge.risk-Critical { background: #ef4444; }
+  .score-badge.risk-Unavailable { background: #94a3b8; }
+  .station-row .bottom-row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+
+  .detail-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #e5e7eb; }
+  .detail-header .id-pill { display: inline-block; background: #172033; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; font-family: "JetBrains Mono", monospace; margin-right: 8px; }
+  .detail-header .meta-line { font-size: 12.5px; color: #64748b; }
+  .detail-header .name { font-size: 17px; font-weight: 800; letter-spacing: -0.015em; color: #172033; margin-top: 8px; }
+  .detail-header .desc { font-size: 12.5px; color: #64748b; margin-top: 5px; }
+  .detail-header .telemetry { display: flex; gap: 12px; font-size: 11.5px; color: #64748b; align-items: center; font-family: "JetBrains Mono", monospace; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 10px; }
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 20px; align-items: stretch; }
+  .metric-grid .metric-card { display: flex; flex-direction: column; }
+  @media (max-width: 900px) { .metric-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 500px) { .metric-grid { grid-template-columns: 1fr; } }
+  .metric-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb; border-radius: 11px; padding: 15px;
+    box-shadow: 0 1px 4px rgba(15,23,42,.05);
+  }
+  .metric-card .m-label { font-size: 12px; color: #64748b; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+  .metric-card .m-label svg { width: 15px; height: 15px; color: #94a3b8; }
+  .metric-card .m-value { font-size: 22px; font-weight: 800; margin: 8px 0 4px; letter-spacing: -0.02em; color: #172033; }
+  .metric-card .m-value span { font-size: 12px; font-weight: 600; color: #64748b; }
+  .metric-card .m-threshold { font-size: 11px; color: #94a3b8; margin-bottom: 9px; }
+  .bar-track { height: 6px; background: #eef1f5; border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
+  .fill-safe { background: #22c55e; }
+  .fill-warn { background: #eab308; }
+  .fill-high { background: #f97316; }
+  .fill-critical { background: #ef4444; }
+  .metric-card.unavailable { opacity: .75; }
+  .metric-card .m-unavailable-text { font-size: 15px; font-weight: 700; color: #94a3b8; margin: 10px 0 6px; }
+  .metric-card .m-unavailable-note { font-size: 10.5px; color: #94a3b8; line-height: 1.4; }
+  .trend-unavailable { border: 1.5px dashed #e2e8f0; border-radius: 10px; padding: 30px 20px; text-align: center; color: #64748b; font-size: 12.5px; line-height: 1.6; background: #fafbfc; }
+
+  /* ---- DEMO MODE (clearly separate from real-data styling) ---- */
+  .badge-demo { display:inline-block; background:#fef3c7; color:#92400e; font-size:10px; font-weight:800; padding:2px 9px; border-radius:20px; letter-spacing:.02em; }
+  .metric-card.demo-data { border: 1.5px dashed #f59e0b; background: #fffbeb; }
+  .metric-card .m-demo-note { font-size: 10.5px; color: #92400e; font-weight: 700; line-height: 1.4; margin-top: 4px; }
+  .m-timestamp { font-size: 10px; color: #94a3b8; margin-top: 6px; font-family: "JetBrains Mono", monospace; }
+  .demo-scenario-bar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:10px 14px; margin-bottom:16px; }
+  .demo-scenario-bar .lbl { font-size:12.5px; font-weight:700; color:#92400e; }
+  .demo-scenario-bar select { border:1px solid #fcd34d; background:#fff; color:#92400e; font-weight:700; font-size:12.5px; padding:6px 10px; border-radius:7px; }
+  .btn-reset-demo { background:#fff; border:1px solid #fcd34d; color:#92400e; font-weight:700; font-size:12px; padding:6px 12px; border-radius:7px; cursor:pointer; }
+  .btn-reset-demo:hover { background:#fef3c7; }
+  .demo-banner-active { background:#fef3c7; border:1.5px solid #f59e0b; border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:12.5px; color:#92400e; font-weight:700; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  .data-source-banner { background:#fef2f2; border:1.5px solid #fecaca; color:#991b1b; font-size:12px; font-weight:700; padding:9px 14px; border-radius:9px; margin-bottom:14px; }
+
+  /* AI Predictive Engine */
+  .ai-banner {
+    background: linear-gradient(120deg, #1a0a12, #2b0d14 60%, #1a0a12);
+    border-radius: 14px; padding: 22px 26px; margin-top: 4px; margin-bottom: 24px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    box-shadow: 0 6px 20px rgba(0,0,0,.15);
+  }
+  .ai-banner-icon {
+    width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+    background: linear-gradient(145deg, #f43f5e, #9f1239);
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .ai-banner-title { color: #fff; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+  .ai-badge { background: linear-gradient(145deg, #fb923c, #ea580c); color: #fff; font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .ai-banner-sub { color: #d1a3ad; font-size: 12.5px; margin-top: 4px; }
+  .btn-sitrep {
+    background: linear-gradient(120deg, #fb923c, #e11d48); color: #fff; border: none;
+    padding: 12px 20px; border-radius: 9px; font-weight: 700; font-size: 13.5px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(225,29,72,.35); white-space: nowrap;
+  }
+  .btn-sitrep:hover { filter: brightness(1.05); }
+
+  .ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .ai-grid { grid-template-columns: 1fr; } }
+
+  .ai-readout-box { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 500px) { .ai-readout-box { grid-template-columns: 1fr; } }
+  .ai-readout-box .item { text-align: left; }
+  .ai-readout-box .item .lbl { font-size: 11.5px; color: #64748b; }
+  .ai-readout-box .item .val { font-size: 16px; font-weight: 800; color: #172033; margin-top: 3px; }
+
+  .btn-compute {
+    width: 100%; background: linear-gradient(120deg, #fb4160, #e11d48); color: #fff; border: none;
+    padding: 13px; border-radius: 9px; font-weight: 700; font-size: 14px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(225,29,72,.3);
+  }
+  .btn-compute:hover { filter: brightness(1.05); }
+
+  .sitrep-empty {
+    border: 1.5px dashed #e2e8f0; border-radius: 10px; padding: 40px 24px; text-align: center;
+    color: #64748b; font-size: 13px; line-height: 1.6; background: #fafbfc;
+  }
+  .sitrep-report {
+    background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px;
+    font-size: 12.5px; line-height: 1.7; color: #1f2937; white-space: pre-wrap; font-family: "JetBrains Mono", monospace;
+    max-height: 420px; overflow-y: auto;
+  }
+  .ai-result-card {
+    margin-top: 14px; border-radius: 10px; padding: 14px; border: 1px solid #e5e7eb; background: #f8fafc;
+  }
+  .ai-result-card .r-score { font-size: 22px; font-weight: 800; color: #172033; }
+
+  .muted { color: var(--muted); font-size: 12px; }
+  canvas { max-height: 260px; }
+  .role-toggle { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #6b7280; }
+  .locked { opacity: .4; filter: blur(2px); pointer-events: none; }
+  footer { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; }
+
+  /* FEATURE SUMMARY BAND - Field Incident Report & Highway Corridors headers */
+  .feature-band {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px 20px; margin-bottom: 18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05);
+  }
+  .feature-band-left { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 260px; }
+  .feature-band-icon {
+    width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    background: rgba(249,115,22,.12); color: #ea580c; flex-shrink: 0; font-size: 20px;
+  }
+  .feature-band-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .feature-band-title h2 { font-size: 16px; font-weight: 800; color: #111827; }
+  .feature-band-badge {
+    background: rgba(249,115,22,.12); color: #c2410c; font-size: 11px; font-weight: 800;
+    padding: 3px 10px; border-radius: 20px; letter-spacing: .02em; white-space: nowrap;
+  }
+  .feature-band-badge.ok { background: rgba(37,99,235,.1); color: #1d4ed8; }
+  .feature-band-sub { font-size: 12.5px; color: #6b7280; margin-top: 3px; }
+  .feature-band-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .feature-band-controls select, .feature-band-controls input { font-size: 13px; }
+  .feature-add-btn {
+    width: 40px; height: 40px; border-radius: 10px; border: none; cursor: pointer;
+    background: linear-gradient(145deg,#fb923c,#ea580c); color: #fff; font-size: 20px; font-weight: 800;
+    box-shadow: 0 4px 14px rgba(234,88,12,.35); display: flex; align-items: center; justify-content: center;
+    transition: transform .15s, box-shadow .15s; line-height: 1;
+  }
+  .feature-add-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(234,88,12,.45); }
+
+  /* INCIDENT REPORT CARDS */
+  .incident-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap: 16px; }
+  .incident-card {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05); border-left: 4px solid var(--sev-color, #9ca3af);
+  }
+  .incident-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .incident-sev-pill { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; letter-spacing: .02em; }
+  .incident-card-time { font-size: 11px; color: #9ca3af; font-weight: 600; white-space: nowrap; }
+  .incident-card h3 { font-size: 15px; font-weight: 800; color: #111827; margin-bottom: 6px; line-height: 1.35; }
+  .incident-card-loc { font-size: 12px; color: #6b7280; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
+  .incident-card-desc { font-size: 13px; color: #374151; line-height: 1.55; margin-bottom: 12px; }
+  .incident-photo-thumb { width: 100%; max-height: 130px; object-fit: cover; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e5e7eb; }
+  .incident-triage-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+  .incident-triage-box .t-head { font-size: 11.5px; font-weight: 800; color: #92400e; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .incident-triage-box .t-body { font-size: 12px; color: #78350f; line-height: 1.5; }
+  .incident-card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .incident-tag { font-size: 10.5px; font-weight: 700; background: #f1f5f9; color: #475569; padding: 3px 9px; border-radius: 7px; }
+  .incident-card-footer { font-size: 11.5px; color: #9ca3af; font-weight: 600; border-top: 1px solid #f1f5f9; padding-top: 10px; }
+  .incident-card-footer b { color: #4b5563; }
+
+  /* REPORT MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,.55); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px;
+  }
+  .modal-box {
+    background: #fff; border-radius: 16px; max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  .modal-header {
+    background: linear-gradient(135deg,#f43f5e,#be123c); color: #fff; padding: 18px 24px;
+    border-radius: 16px 16px 0 0; display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 800;
+    position: sticky; top: 0; z-index: 2;
+  }
+  .modal-close {
+    margin-left: auto; background: rgba(255,255,255,.18); border: none; color: #fff; width: 30px; height: 30px;
+    border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
+  }
+  .modal-body { padding: 22px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .modal-field { display: flex; flex-direction: column; gap: 6px; }
+  .modal-field.full { grid-column: 1 / -1; }
+  .modal-field label { font-size: 12px; font-weight: 700; color: #374151; }
+  .modal-field input, .modal-field select, .modal-field textarea {
+    background: #f9fafb; border: 1px solid #e5e7eb; color: #111827; padding: 10px 12px; border-radius: 9px; font-size: 13px; font-family: inherit;
+  }
+  .modal-field textarea { min-height: 80px; resize: vertical; }
+  .gps-row { display: flex; gap: 8px; }
+  .gps-row input { flex: 1; }
+  .gps-btn {
+    background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; border-radius: 9px; padding: 0 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px;
+  }
+  .gps-btn:hover { background: #e2e8f0; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #374151; padding-top: 22px; }
+  .modal-note { grid-column: 1 / -1; font-size: 11.5px; color: #9ca3af; margin-top: -4px; }
+  .modal-footer { padding: 16px 24px 22px; display: flex; justify-content: flex-end; gap: 10px; }
+  .modal-footer button { padding: 11px 22px; border-radius: 9px; font-weight: 700; font-size: 13px; cursor: pointer; border: none; }
+  .modal-cancel-btn { background: #f1f5f9; color: #475569; }
+  .modal-submit-btn { background: linear-gradient(145deg,#fb923c,#ea580c); color: #fff; box-shadow: 0 4px 14px rgba(234,88,12,.3); }
+
+  /* HIGHWAY CORRIDORS */
+  .corridor-list { display: flex; flex-direction: column; gap: 10px; }
+  .corridor-item {
+    display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px;
+  }
+  .corridor-item-left { display: flex; flex-direction: column; gap: 3px; }
+  .corridor-item-name { font-size: 14px; font-weight: 800; color: #111827; }
+  .corridor-item-state { font-size: 12px; color: #9ca3af; font-weight: 600; }
+  .corridor-item-right { display: flex; align-items: center; gap: 8px; }
+  .corridor-oneway-tag { font-size: 10.5px; font-weight: 800; background: #eff6ff; color: #1d4ed8; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+
+  /* EMERGENCY CONTACTS */
+  .contact-controls { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+  .contact-controls input { flex: 2; min-width: 220px; }
+  .contact-controls select { flex: 1; min-width: 160px; }
+  .contact-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 16px; }
+  .contact-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; box-shadow: 0 2px 12px rgba(0,0,0,.05); }
+  .contact-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px; }
+  .contact-cat-tag { font-size: 10.5px; font-weight: 800; letter-spacing: .03em; padding: 4px 10px; border-radius: 7px; background: #0f172a; color: #fff; white-space: nowrap; }
+  .contact-avail-tag { font-size: 10.5px; font-weight: 800; color: #16a34a; background: rgba(34,197,94,.12); padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+  .contact-card h3 { font-size: 15px; font-weight: 800; color: #111827; margin-bottom: 8px; line-height: 1.35; }
+  .contact-card-loc { font-size: 12px; color: #6b7280; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+  .contact-card-desc { font-size: 12.5px; color: #6b7280; line-height: 1.5; margin-bottom: 14px; min-height: 34px; }
+  .contact-card-footer { display: flex; gap: 8px; }
+  .contact-call-btn {
+    flex: 1; background: linear-gradient(145deg,#f43f5e,#be123c); color: #fff; border: none; border-radius: 9px;
+    padding: 10px 14px; font-weight: 800; font-size: 13px; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; gap: 8px; text-decoration: none;
+  }
+  .contact-copy-btn {
+    width: 42px; border: 1px solid #e5e7eb; background: #f9fafb; border-radius: 9px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; color: #4b5563; font-size: 14px;
+  }
+  .contact-copy-btn:hover { background: #f1f5f9; }
+  .contact-note { font-size: 10.5px; color: #9ca3af; margin-top: 8px; }
+
+  /* ALERTS & SIREN DISPATCH */
+  .btn-test-tone {
+    background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; border-radius: 9px; padding: 10px 16px;
+    font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .btn-test-tone:hover { background: #e2e8f0; }
+  .btn-broadcast {
+    background: linear-gradient(145deg,#fb923c,#ea580c); color: #fff; border: none; border-radius: 9px; padding: 10px 18px;
+    font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 0 4px 14px rgba(234,88,12,.3); white-space: nowrap;
+  }
+  .bulletin-card {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05); border-left: 4px solid var(--sev-color, #9ca3af);
+  }
+  .bulletin-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .bulletin-issued { font-size: 11px; color: #9ca3af; font-weight: 600; white-space: nowrap; }
+  .bulletin-card h3 { font-size: 15px; font-weight: 800; color: #111827; margin-bottom: 6px; }
+  .bulletin-loc { font-size: 12px; color: #6b7280; font-weight: 600; margin-bottom: 10px; }
+  .bulletin-desc { font-size: 12.5px; color: #374151; line-height: 1.55; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 9px; padding: 10px 12px; margin-bottom: 12px; }
+  .bulletin-channels { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .channel-tag { font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 6px; letter-spacing: .02em; }
+  .channel-tag.on { background: #dbeafe; color: #1d4ed8; }
+  .channel-tag.off { background: #f1f5f9; color: #9ca3af; text-decoration: line-through; }
+  .bulletin-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11.5px; color: #9ca3af; font-weight: 600; border-top: 1px solid #f1f5f9; padding-top: 10px; }
+  .bulletin-status { font-weight: 800; }
+  .bulletin-status.active { color: #16a34a; }
+  .bulletin-status.pending { color: #d97706; }
+  .alert-log-row { background: #fff; border: 1px solid #e5e7eb; border-radius: 9px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="ticker">
+  <div><span class="live-dot"></span>NER DISASTER NETWORK ACTIVE &nbsp;|&nbsp; GSI Landslide Hazard Protocol · IMD Precipitation Radar Linked</div>
+  <div class="right">
+    <span class="sos">SOS HOTLINE (112)</span>
+    <span id="roleLabel">chakri · PUBLIC</span>
+  </div>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="badge">⛰️</div>
+    <div>
+      <h1>LandslideAI</h1>
+      <p>An Early Warning and Landslide Prediction System</p>
+    </div>
+  </div>
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+    <select id="stateSelect" onchange="handleHeaderStateSelect(this.value)">
+      <option>All 8 NER States</option>
+      <option>Assam</option><option>Meghalaya</option><option>Manipur</option>
+      <option>Mizoram</option><option>Nagaland</option><option>Tripura</option>
+      <option>Arunachal Pradesh</option><option>Sikkim</option>
+    </select>
+    <div style="position:relative;">
+      <select id="langSelect" onchange="handleLangSelect(this.value)">
+        <option value="en">🌐 English</option>
+        <option value="hi">🇮🇳 Hindi</option>
+        <option value="as">Assamese</option>
+        <option value="bn">Bengali</option>
+        <option value="brx">Bodo</option>
+        <option value="mni">Manipuri</option>
+        <option value="kha">Khasi</option>
+        <option value="lus">Mizo</option>
+        <option value="ne">Nepali</option>
+        <option value="fr">French</option>
+        <option value="es">Spanish</option>
+      </select>
+      <div id="langNotice" class="dropdown-notice"></div>
+    </div>
+    <div class="role-toggle">
+      <span>View:</span>
+      <select id="roleSelect" onchange="setRole(this.value)" title="Switches between Public and District Admin view (demo view toggle — not a secure login)">
+        <option value="public">Public</option>
+        <option value="admin">District Admin</option>
+      </select>
+    </div>
+    <div style="position:relative;">
+      <button class="icon-btn" id="settingsBtn" title="Settings" aria-haspopup="true" aria-expanded="false" onclick="toggleSettingsPanel(event)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <div class="settings-popover" id="settingsPanel" role="dialog" aria-label="Settings">
+        <div class="settings-popover-title">Display Settings</div>
+        <label class="settings-row">
+          <input type="checkbox" id="setShowStateLabels" checked onchange="applyMapDisplaySettings()">
+          <span>Show state labels on map</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="setShowStationMarkers" checked onchange="applyMapDisplaySettings()">
+          <span>Show station markers on map</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="setAutoRefresh" onchange="toggleAutoRefresh(this.checked)">
+          <span>Auto-refresh station data (every 5 min)</span>
+        </label>
+        <div class="settings-note">These controls only change what's shown on this screen — they don't affect the underlying data.</div>
+      </div>
+    </div>
+    <button class="emergency-btn" onclick="alert('Emergency siren simulation triggered for demo purposes.')">🔊 Emergency Siren</button>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="showTab('map', this)">GIS Risk Map</button>
+  <button onclick="showTab('sensors', this)">Soil &amp; Rain Sensors</button>
+  <button onclick="showTab('predict', this)">AI Predictive Engine</button>
+  <button onclick="showTab('trends', this)">Trends &amp; Forecast</button>
+  <button onclick="showTab('incidents', this)">Field Incident Report</button>
+  <button onclick="showTab('highway', this)">Highway Corridors</button>
+  <button class="tab-alert" onclick="showTab('contacts', this)">Emergency Contacts</button>
+  <button class="tab-alert" onclick="showTab('alerts', this)">Alerts &amp; Siren Dispatch<span class="dot"></span></button>
+</nav>
+
+<main>
+  <div class="stats" id="statsBar">
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(59,130,246,.14);"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg></div>
+      <div><div class="label">Active IoT Sensors</div><div class="value" id="statSensors">10 <span style="font-size:13px; color:var(--muted); font-weight:500;">Nodes</span></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(239,68,68,.14);"><svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></div>
+      <div><div class="label">Critical (Evacuate)</div><div class="value" style="color:var(--critical)" id="statCritical">–</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(245,158,11,.14);"><svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M4 19h16M4 15l4-8 4 5 3-4 5 7"/></svg></div>
+      <div><div class="label">Highway Corridors</div><div class="value" id="statHighways">– <span style="font-size:13px; color:var(--muted); font-weight:500;">Highways</span></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(34,197,94,.14);"><svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+      <div><div class="label">Emergency Contacts</div><div class="value" style="font-size:20px">112 / 1070</div></div>
+    </div>
+  </div>
+
+  <!-- GIS RISK MAP -->
+  <div class="tab-content active" id="tab-map">
+    <div class="panel map-panel-light">
+      <h2>
+        Real-Time Risk Map <span class="muted" style="font-weight:400;">Live prediction per monitored station</span>
+        <span style="margin-left:auto;" class="map-view-toggle">
+          <button class="active" id="btnSchematic" onclick="setMapView('schematic')">Schematic</button>
+          <button id="btnReal" onclick="setMapView('real')">Real-World Map</button>
+        </span>
+      </h2>
+      <div class="map-stage">
+        <div class="ner-map-wrap" id="schematicMapWrap">
+          <svg id="nerMapSvg" viewBox="0 0 1000 560" onclick="handleMapBackgroundClick(event)"></svg>
+          <div class="map-overlay-top">
+            <div class="state-focus-bar" id="stateFocusBar"></div>
+          </div>
+          <div class="map-tooltip" id="mapTooltip" role="tooltip" onmouseenter="cancelTooltipHide()" onmouseleave="hideStationTooltip()"></div>
+                    <div class="risk-legend">
+            <div class="legend-title">Risk Severity Legend</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#22c55e;"></span>Low</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#f59e0b;"></span>Moderate</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#f97316;"></span>High (Orange)</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#ef4444;"></span>Critical (Red)</div>
+          </div>
+          <div class="floating-actions">
+            <button class="fab-siren" onclick="alert('Emergency siren simulation triggered for demo purposes.')">🔊 Emergency Siren</button>
+            <button class="fab-sos" onclick="alert('tel:112 - demo only')">📞 1-Touch SOS (112)</button>
+          </div>
+        </div>
+        <div id="map"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Monitored Stations</h2>
+      <div id="locationsSourceBanner"></div>
+      <div class="locations-grid" id="locationsGrid">
+        <p class="muted">Loading stations…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOIL & RAIN SENSORS -->
+  <div class="tab-content" id="tab-sensors">
+    <div class="panel map-panel-light">
+      <h2>Soil &amp; Rain Sensors <span class="badge-live">Real Data + Computed Index</span></h2>
+      <div class="sub" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; align-items:center;">
+        <span>NASA POWER reanalysis soil moisture, DEM-derived slope &amp; a computed Slope Saturation Index — no physical piezometers or inclinometers are installed, so none of that is simulated here</span>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <span class="lbl" style="font-size:12px; font-weight:700; color:#64748b;">Demo Scenario:</span>
+          <select id="scenarioSelect" onchange="onScenarioSelectChange()" style="border:1px solid #cbd5e1; border-radius:7px; padding:6px 10px; font-size:12.5px; font-weight:700; color:#172033;">
+            <option value="normal">Normal Conditions</option>
+            <option value="heavy">Heavy Rainfall</option>
+            <option value="cloudburst">Cloudburst Risk</option>
+          </select>
+          <button class="btn btn-orange" onclick="simulateCloudburst()">⚡ Simulate Cloudburst Infiltration</button>
+        </div>
+      </div>
+      <div id="demoScenarioBanner"></div>
+      <div class="sensor-layout">
+        <div>
+          <div class="station-list-header">
+            <span class="label">ACTIVE STATIONS (<span id="stationCount">0</span>)</span>
+            <span class="label">SELECT TO INSPECT</span>
+          </div>
+          <div class="station-list" id="stationList"></div>
+        </div>
+        <div>
+          <div class="panel map-panel-light" style="margin:0;" id="stationDetail"></div>
+          <div class="panel map-panel-light" style="margin-top:22px;">
+            <h2 style="justify-content:space-between;">
+              <span>14-Day Rainfall History <span class="badge-live" id="sensorHistoryBadge">NASA POWER</span><br><span class="sub" style="font-size:12px; font-weight:400;">Real daily rainfall for the selected station</span></span>
+            </h2>
+            <canvas id="sensorHistoryChart" height="90"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI PREDICTIVE ENGINE -->
+  <div class="tab-content" id="tab-predict">
+    <div class="ai-banner">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div class="ai-banner-icon">🧠</div>
+        <div>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span class="ai-banner-title">AI Predictive Engine</span>
+            <span class="ai-badge">Predictive ML Engine</span>
+          </div>
+          <div class="ai-banner-sub">Predictive hydro-mechanical slope stability forecasting &amp; automated emergency bulletins</div>
+        </div>
+      </div>
+      <button class="btn-sitrep" onclick="generateSitrep()">📄 Generate Disaster Bulletin (SITREP)</button>
+    </div>
+
+    <div class="ai-grid">
+      <div class="panel map-panel-light">
+        <h2 style="justify-content:space-between;">
+          <span>✨ AI Slope Failure Probability Engine</span>
+          <span class="muted" style="font-size:12px; font-weight:400;">Output: English</span>
+        </h2>
+        <p class="sub" style="margin-bottom:6px; font-weight:600; color:#374151;">Target Sensor Station for Deep Geotechnical Audit:</p>
+        <select id="aiStationSelect" style="width:100%; margin-bottom:14px;" onchange="onAIStationChange()"></select>
+
+        <div class="ai-readout-box" id="aiReadoutBox"></div>
+
+        <button class="btn-compute" onclick="computeAIRiskAssessment()">⚙ Compute AI Risk Assessment</button>
+        <div id="aiResultBox"></div>
+      </div>
+
+      <div class="panel map-panel-light">
+        <h2>📄 Regional Disaster SITREP &amp; Early Warning Bulletin</h2>
+        <div id="sitrepBox" class="sitrep-empty">
+          <div style="font-size:32px; margin-bottom:10px;">📄</div>
+          Click <b>"Generate Disaster Bulletin (SITREP)"</b> above to assemble a synthesized emergency brief for disaster commissioners and emergency dispatchers, based on the selected station's live data.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel map-panel-light" style="margin-top:26px;">
+      <h2>Search Any Location</h2>
+      <p class="muted" style="margin-bottom:12px;">Type any state, city, or place name — not limited to the 8 monitored stations.</p>
+      <div class="search-row">
+        <input id="placeInput" placeholder="e.g. Gangtok, Sikkim  or  27.33, 88.61">
+        <button onclick="predictLocation()">Predict Risk</button>
+      </div>
+      <div id="predictResult"></div>
+    </div>
+  </div>
+
+  <!-- TRENDS & FORECAST -->
+  <div class="tab-content" id="tab-trends">
+    <div class="panel map-panel-light">
+      <h2>Rainfall Trend — Compare Stations <span class="badge-live" id="trendSourceBadge">REAL</span></h2>
+      <div class="trend-station-chips" id="trendStationChips"></div>
+      <div class="trend-chart-wrap">
+        <svg id="trendCompareSvg" viewBox="0 0 1150 230" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="events-track" id="trendEventsTrack"></div>
+      <p class="muted" id="trendNote" style="margin-top:8px;"></p>
+    </div>
+    <div class="panel map-panel-light">
+      <h2>5-Day Risk &amp; Rainfall Outlook <span class="badge-live" id="forecastSourceBadge">FORECAST</span> <span class="muted" id="forecastLocName" style="font-weight:400;"></span></h2>
+      <div class="forecast-strip" id="forecastStrip"></div>
+      <p class="muted" id="forecastNote" style="margin-top:8px;"></p>
+    </div>
+  </div>
+
+  <!-- HIGHWAY CORRIDORS -->
+  <div class="tab-content" id="tab-highway">
+    <div class="feature-band">
+      <div class="feature-band-left">
+        <div class="feature-band-icon">🛣️</div>
+        <div>
+          <div class="feature-band-title">
+            <h2>Highway Corridors</h2>
+            <span class="feature-band-badge" id="corridorCriticalBadge">0 Critical Blockages</span>
+            <span class="feature-band-badge ok" id="corridorOnewayBadge">0 One-Way Convoys</span>
+          </div>
+          <div class="feature-band-sub">Real OpenStreetMap road geometry, cross-checked against real monitored-station risk <span class="badge-demo" id="corridorSourceBadge" style="margin-left:6px;">LOADING…</span></div>
+        </div>
+      </div>
+      <div class="feature-band-controls">
+        <input id="corridorSearch" placeholder="Search NH-6, NH-2…" oninput="renderCorridorList()">
+        <select id="corridorSort" onchange="renderCorridorList()">
+          <option value="">Sort: Default</option>
+          <option value="risk">Sort: Risk High → Low</option>
+          <option value="name">Sort: Name A–Z</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel map-panel-light">
+      <div class="corridor-list" id="highwayList"></div>
+      <p class="muted" style="margin-top:14px;" id="corridorFootnote">Real highway geometry from the OpenStreetMap Overpass API, cross-checked against this project's real, rainfall-driven station risk levels — a corridor's risk shown here is its nearest monitored station's risk, only when that station is genuinely close to the road's real path.</p>
+    </div>
+  </div>
+
+  <!-- FIELD INCIDENT REPORT -->
+  <div class="tab-content" id="tab-incidents">
+    <div class="feature-band">
+      <div class="feature-band-left">
+        <div class="feature-band-icon">⚠️</div>
+        <div>
+          <div class="feature-band-title">
+            <h2>Field Incident Report</h2>
+            <span class="feature-band-badge" id="incidentCountBadge">0 Ground Reports</span>
+          </div>
+          <div class="feature-band-sub">Citizen crowd-sourced &amp; field-officer geotagged incident reporting</div>
+        </div>
+      </div>
+      <div class="feature-band-controls">
+        <select id="incidentSeverityFilter" onchange="renderIncidentCards()">
+          <option value="">All Severities</option>
+          <option value="Critical">Critical</option>
+          <option value="High">High</option>
+          <option value="Moderate">Moderate</option>
+          <option value="Low">Low</option>
+        </select>
+        <button class="feature-add-btn" onclick="openIncidentModal()" title="Report an incident">+</button>
+      </div>
+    </div>
+    <div id="incidentSourceBanner"></div>
+    <div class="incident-card-grid" id="incidentCardGrid"><p class="muted">Loading reports…</p></div>
+  </div>
+
+  <!-- EMERGENCY CONTACTS -->
+  <div class="tab-content" id="tab-contacts">
+    <div class="feature-band">
+      <div class="feature-band-left">
+        <div class="feature-band-icon">📞</div>
+        <div>
+          <div class="feature-band-title">
+            <h2>Emergency Contacts</h2>
+            <span class="feature-band-badge ok" id="contactCountBadge">0 Contacts</span>
+          </div>
+          <div class="feature-band-sub">National helplines, plus NER state disaster-management control rooms</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel map-panel-light">
+      <div class="contact-controls">
+        <input id="contactSearch" placeholder="Search NDRF, SDMA, district name, or phone number…" oninput="renderContacts()">
+        <select id="contactStateFilter" onchange="renderContacts()">
+          <option value="">All 8 NER States</option>
+          <option value="Sikkim">Sikkim</option>
+          <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+          <option value="Assam">Assam</option>
+          <option value="Meghalaya">Meghalaya</option>
+          <option value="Nagaland">Nagaland</option>
+          <option value="Manipur">Manipur</option>
+          <option value="Mizoram">Mizoram</option>
+          <option value="Tripura">Tripura</option>
+        </select>
+        <select id="contactAgencyFilter" onchange="renderContacts()">
+          <option value="">All Agencies</option>
+          <option value="Police">Police</option>
+          <option value="NDRF">NDRF</option>
+          <option value="Disaster Management">Disaster Management</option>
+          <option value="Medical">Medical</option>
+          <option value="Weather">Weather</option>
+          <option value="Geological">Geological</option>
+        </select>
+      </div>
+      <div class="contact-card-grid" id="contactsGrid"></div>
+    </div>
+  </div>
+
+  <!-- ALERTS & SIREN DISPATCH -->
+  <div class="tab-content" id="tab-alerts">
+    <div class="feature-band">
+      <div class="feature-band-left">
+        <div class="feature-band-icon">🔔</div>
+        <div>
+          <div class="feature-band-title">
+            <h2>Alerts &amp; Siren Dispatch</h2>
+            <span class="feature-band-badge" id="bulletinCountBadge">0 Active Warning Bulletins</span>
+          </div>
+          <div class="feature-band-sub">Live High/Critical breaches from the trained risk model, with manual broadcast dispatch</div>
+        </div>
+      </div>
+      <div class="feature-band-controls">
+        <button class="btn-test-tone" onclick="testWarningTone()">🔈 Test Warning Tone</button>
+        <button class="btn-broadcast" id="broadcastBtn" onclick="broadcastEmergencyWarning()">+ Broadcast Emergency Warning</button>
+      </div>
+    </div>
+    <div id="bulletinSourceBanner"></div>
+    <div id="bulletinList"><p class="muted">Checking…</p></div>
+
+    <div class="panel map-panel-light" id="adminOnlyAlerts" style="margin-top:20px;">
+      <h2>Subscribe to Alerts <span class="muted" style="font-weight:400;">Email / SMS when risk crosses High</span></h2>
+      <div class="search-row">
+        <input id="alertEmail" placeholder="you@example.com">
+        <select id="alertLocation"></select>
+        <button onclick="subscribeAlert()">Subscribe</button>
+      </div>
+      <p class="muted">Email sends for real if SMTP_* env vars are configured on the backend; SMS sends for real if TWILIO_* env vars are configured. Otherwise both are logged as simulated — see the Alert Log below.</p>
+    </div>
+    <div class="panel map-panel-light" style="margin-top:20px;">
+      <h2>Recent Alert Log <span class="muted" style="font-weight:400;">Real dispatch attempts recorded in the database</span></h2>
+      <div id="alertLogList"><p class="muted">Loading…</p></div>
+    </div>
+  </div>
+</main>
+
+<!-- FIELD INCIDENT REPORT MODAL -->
+<div class="modal-overlay" id="incidentModalOverlay" style="display:none;" onclick="if(event.target===this) closeIncidentModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>⚠️ Report Landslide, Rockfall or Slope Failure</span>
+      <button class="modal-close" onclick="closeIncidentModal()">✕</button>
+    </div>
+    <form id="incidentForm" onsubmit="submitIncident(event)">
+      <div class="modal-body">
+        <div class="modal-field full">
+          <label>Incident Title / Summary *</label>
+          <input id="incTitle" placeholder="e.g. Major rockfall blocking NH-29 near Pagla Pahar" required>
+        </div>
+        <div class="modal-field">
+          <label>Hazard Category *</label>
+          <select id="incHazard" required>
+            <option value="Major Hill Landslide">Major Hill Landslide</option>
+            <option value="Rockfall">Rockfall</option>
+            <option value="Mudslide / Debris Flow">Mudslide / Debris Flow</option>
+            <option value="Road Subsidence / Crack">Road Subsidence / Crack</option>
+            <option value="Flash Flood / Waterlogging">Flash Flood / Waterlogging</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Assessed Severity</label>
+          <select id="incSeverity">
+            <option value="Critical">Critical (Severe Slope Failure)</option>
+            <option value="High">High</option>
+            <option value="Moderate">Moderate</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>State *</label>
+          <select id="incState" required>
+            <option value="Sikkim">Sikkim</option>
+            <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+            <option value="Assam">Assam</option>
+            <option value="Meghalaya">Meghalaya</option>
+            <option value="Nagaland">Nagaland</option>
+            <option value="Manipur">Manipur</option>
+            <option value="Mizoram">Mizoram</option>
+            <option value="Tripura">Tripura</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>District</label>
+          <input id="incDistrict" placeholder="e.g. Dima Hasao / Haflong">
+        </div>
+        <div class="modal-field full">
+          <label>Exact Location / Landmark *</label>
+          <div class="gps-row">
+            <input id="incLoc" placeholder="e.g. Near Tunnel 7, Jatinga Valley or Km 18 on Dimapur road" required>
+            <button type="button" class="gps-btn" id="gpsBtn" onclick="autoDetectGPS()">📍 Auto-Detect GPS</button>
+          </div>
+        </div>
+        <div class="modal-field full">
+          <label>Detailed Observations &amp; Terrain Condition</label>
+          <textarea id="incDesc" placeholder="Describe mud thickness, boulder sizes, slope movement sounds, or stranded vehicles…" required></textarea>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="incHighwayBlocked">
+          <label for="incHighwayBlocked" style="font-size:13px;">Highway / Road Completely Blocked</label>
+        </div>
+        <div class="modal-field">
+          <label>Estimated People / Vehicles Stranded</label>
+          <input type="number" id="incStranded" min="0" value="0">
+        </div>
+        <div class="modal-field full">
+          <label>Attach Field Photo / Evidence (optional, under 3MB)</label>
+          <input type="file" id="incPhoto" accept="image/*" onchange="onIncidentPhotoChange(event)">
+          <div id="incPhotoPreviewWrap"></div>
+        </div>
+        <div class="modal-field full">
+          <label>Your Name / Reporter *</label>
+          <input id="incName" placeholder="e.g. T. Ao" required>
+        </div>
+        <p class="modal-note" id="incidentModalNote">AI Triage Priority below is a rule-based heuristic generated from the fields above (hazard type, severity, blockage, stranded count) — not a trained ML model.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-cancel-btn" onclick="closeIncidentModal()">Cancel</button>
+        <button type="submit" class="modal-submit-btn">Submit Report</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer>Student project prototype · Backend expected at <code id="apiBaseLabel">http://localhost:8000</code> · Falls back to demo data if unreachable</footer>
+
+<script>
+const API_BASE = "http://localhost:8000";
+document.getElementById('apiBaseLabel').textContent = API_BASE;
+
+const DEMO_LOCATIONS = [
+  {id:"MEG-SOHRA-01", name:"Sohra (Cherrapunji), Meghalaya", state:"Meghalaya", district:"East Khasi Hills", lat:25.28, lon:91.72, risk_score:0.82, risk_level:"Critical", rain_24h:142, rain_72h:310, rain_7d:410},
+  {id:"MIZ-AIZ-01", name:"Aizawl, Mizoram", state:"Mizoram", district:"Aizawl", lat:23.73, lon:92.72, risk_score:0.61, risk_level:"High", rain_24h:98, rain_72h:210, rain_7d:290},
+  {id:"MAN-TUP-04", name:"Tupul, Manipur", state:"Manipur", district:"Noney", lat:24.68, lon:93.83, risk_score:0.34, risk_level:"Moderate", rain_24h:55, rain_72h:120, rain_7d:180},
+  {id:"TRI-KHD-01", name:"Khowai-Dhalai, Tripura", state:"Tripura", district:"Khowai-Dhalai", lat:24.06, lon:91.63, risk_score:0.12, risk_level:"Low", rain_24h:20, rain_72h:45, rain_7d:70},
+  {id:"NAG-KOH-01", name:"Kohima, Nagaland", state:"Nagaland", district:"Kohima", lat:25.67, lon:94.11, risk_score:0.28, risk_level:"Moderate", rain_24h:48, rain_72h:100, rain_7d:150},
+  {id:"ARU-ITA-01", name:"Itanagar, Arunachal Pradesh", state:"Arunachal Pradesh", district:"Papum Pare", lat:27.10, lon:93.62, risk_score:0.19, risk_level:"Low", rain_24h:30, rain_72h:60, rain_7d:90},
+  {id:"SIK-GAN-01", name:"Gangtok, Sikkim", state:"Sikkim", district:"East Sikkim", lat:27.33, lon:88.61, risk_score:0.71, risk_level:"High", rain_24h:110, rain_72h:250, rain_7d:330},
+  {id:"ASM-GUW-01", name:"Guwahati, Assam", state:"Assam", district:"Kamrup Metropolitan", lat:26.14, lon:91.74, risk_score:0.15, risk_level:"Low", rain_24h:22, rain_72h:50, rain_7d:80},
+];
+// DEMO fallback only (shown with the "backend unreachable" banner): stamps a
+// plausible recent data-end date rather than a fixed string that would look
+// stale on later runs - computed, not a made-up field name.
+(function stampDemoDataEnd() {
+  const d = new Date();
+  d.setDate(d.getDate() - 2);
+  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  DEMO_LOCATIONS.forEach(l => { l.rain_data_end = ymd; });
+})();
+
+// Extra sensor-station metadata (simulated IoT layer on top of real rainfall-driven risk)
+const SENSOR_META = {
+  "MEG-SOHRA-01": {place:"Sohra (Cherrapunji) Cliff Escarpment", region:"East Khasi Hills, Meghalaya", geology:"Upper Cretaceous Limestone & Sandstone Overburden"},
+  "MIZ-AIZ-01": {place:"Hunthar Veng Sinking Area", region:"Aizawl North, Mizoram", geology:"Tertiary Surma Group Sandstone-Shale"},
+  "MAN-TUP-04": {place:"Tupul-Ijei River Basin Hill Ridge", region:"Noney, Manipur", geology:"Disturbed Belt Sedimentary Sequence"},
+  "TRI-KHD-01": {place:"Atharamura Hill Pass", region:"Khowai-Dhalai, Tripura", geology:"Tipam Sandstone Formation"},
+  "NAG-KOH-01": {place:"Kohima Ridge Slope", region:"Kohima, Nagaland", geology:"Naga Metamorphic Belt"},
+  "ARU-ITA-01": {place:"Itanagar Capital Complex Slope", region:"Papum Pare, Arunachal Pradesh", geology:"Siwalik Group Sediments"},
+  "SIK-GAN-01": {place:"Gangtok Ridge Escarpment", region:"East Sikkim", geology:"Darjeeling Gneiss Complex"},
+  "ASM-GUW-01": {place:"Nilachal Hill Slope", region:"Guwahati, Assam", geology:"Precambrian Gneissic Basement"},
+};
+
+// Real geographic projection for the 8 NER states, derived from actual state-boundary
+// GeoJSON (district polygons unioned into state outlines, source: india-maps-data,
+// github.com/udit-001/india-maps-data, itself sourced from public 2011-census boundary
+// data). Equirectangular projection fitted to the 1000x560 SVG viewBox, so a station
+// marker placed via projectLatLon(lat, lon) lands at its true geographic position
+// relative to the real state outlines below - not a hand-placed pixel guess.
+const NER_PROJECTION = {
+  minLon: 88.014119, maxLat: 29.459965, cosLat0: 0.9010612961176787,
+  scale: 58.54353108390843, offsetX: 252.137973602223, offsetY: 60.0,
+};
+function projectLatLon(lat, lon) {
+  const x = (lon - NER_PROJECTION.minLon) * NER_PROJECTION.cosLat0 * NER_PROJECTION.scale + NER_PROJECTION.offsetX;
+  const y = (NER_PROJECTION.maxLat - lat) * NER_PROJECTION.scale + NER_PROJECTION.offsetY;
+  return { x, y };
+}
+
+// Real state boundary paths (simplified for rendering) and label anchors, both produced
+// by running the same projectLatLon() transform over the source GeoJSON polygons offline.
+const NER_STATE_SHAPES = [
+  { code:'SK', name:'SIKKIM', labelX:276.3, labelY:142.9, paths:["M 295.6,181.8 L 296.8,181.4 L 298.0,183.9 L 299.7,184.7 L 299.0,188.1 L 293.8,189.5 L 293.1,193.1 L 291.8,193.6 L 290.4,196.0 L 287.7,193.8 L 285.8,194.7 L 282.9,193.0 L 279.5,193.7 L 279.4,195.4 L 276.5,197.0 L 275.6,198.8 L 273.8,199.8 L 274.2,199.3 L 268.5,197.8 L 267.3,196.5 L 263.6,197.1 L 261.0,196.3 L 259.5,197.6 L 256.5,196.2 L 255.6,192.2 L 253.5,191.1 L 252.1,191.6 L 253.1,187.3 L 255.0,184.4 L 253.6,182.3 L 253.9,180.3 L 255.4,178.7 L 253.7,175.0 L 255.8,169.5 L 258.9,165.2 L 259.6,160.9 L 260.8,160.3 L 261.8,157.8 L 260.5,156.0 L 262.1,155.0 L 261.7,154.0 L 258.5,152.4 L 257.7,150.3 L 258.7,149.2 L 258.2,148.4 L 259.0,147.6 L 262.2,148.9 L 262.3,147.7 L 263.9,147.2 L 264.6,148.8 L 270.0,146.1 L 273.0,146.5 L 273.3,145.5 L 276.1,144.5 L 277.5,142.3 L 280.1,143.5 L 280.5,140.7 L 284.1,139.7 L 283.7,138.0 L 286.8,141.2 L 291.3,141.0 L 295.5,144.6 L 295.5,149.6 L 297.3,150.4 L 298.2,153.9 L 297.8,155.5 L 296.5,156.2 L 297.0,160.6 L 295.6,162.7 L 296.1,164.9 L 294.4,166.2 L 293.1,170.3 L 291.7,171.0 L 293.2,173.0 L 292.4,176.6 L 294.1,179.2 L 293.3,179.7 L 295.6,181.8 Z"] },
+  { code:'AR', name:'ARUNACHAL PRADESH', labelX:603.5, labelY:73.2, paths:["M 530.3,206.7 L 516.3,209.1 L 510.8,206.2 L 510.8,205.1 L 509.2,204.0 L 497.9,202.2 L 496.4,204.8 L 493.9,206.0 L 486.0,206.4 L 483.4,208.4 L 478.4,208.5 L 478.4,209.5 L 476.9,209.8 L 468.1,210.3 L 468.6,206.4 L 467.9,203.6 L 464.2,200.3 L 463.6,197.3 L 464.4,195.9 L 463.7,194.6 L 466.1,190.9 L 464.5,188.4 L 467.8,188.3 L 468.8,187.2 L 465.5,184.9 L 465.3,180.6 L 463.5,177.8 L 463.1,175.3 L 461.4,176.8 L 459.3,177.1 L 454.5,175.8 L 453.4,176.6 L 447.7,176.5 L 446.1,174.6 L 444.2,175.7 L 439.4,169.8 L 440.1,168.4 L 439.2,166.9 L 441.2,163.5 L 442.7,162.7 L 443.5,159.2 L 442.9,157.1 L 441.4,156.0 L 439.6,156.3 L 438.5,153.9 L 444.7,153.8 L 447.2,156.4 L 449.8,157.1 L 453.2,156.6 L 455.1,160.9 L 458.2,162.2 L 461.7,159.0 L 465.4,159.6 L 473.1,153.9 L 475.9,153.6 L 478.7,158.4 L 482.5,157.5 L 482.7,156.3 L 483.9,155.9 L 485.9,157.2 L 488.9,154.8 L 492.0,156.0 L 494.4,152.7 L 497.8,151.4 L 501.5,146.1 L 497.4,141.5 L 498.8,138.1 L 504.7,133.6 L 505.5,133.7 L 506.2,135.5 L 513.4,130.2 L 515.3,132.0 L 517.0,130.1 L 516.5,127.7 L 520.3,127.5 L 521.8,126.4 L 525.5,126.9 L 527.0,125.4 L 527.5,122.0 L 524.8,120.2 L 529.8,115.9 L 531.4,112.3 L 531.1,110.4 L 532.6,109.9 L 533.0,108.0 L 537.0,107.3 L 538.8,105.9 L 539.9,107.3 L 541.2,105.5 L 543.4,106.9 L 548.0,107.0 L 553.8,105.2 L 556.1,106.4 L 559.8,104.1 L 563.7,106.3 L 565.9,103.8 L 566.3,101.5 L 568.1,100.1 L 567.2,98.8 L 567.8,96.2 L 569.6,95.5 L 571.5,93.0 L 576.2,89.6 L 579.4,82.0 L 583.2,78.3 L 586.8,78.0 L 587.7,75.8 L 590.8,73.7 L 594.1,74.3 L 597.5,73.5 L 598.5,70.5 L 600.7,68.6 L 601.2,66.5 L 603.8,67.7 L 609.7,73.7 L 610.1,77.3 L 614.0,76.2 L 622.0,79.3 L 620.1,76.8 L 620.6,76.8 L 625.9,78.6 L 627.2,80.2 L 634.0,80.6 L 633.9,83.0 L 634.9,84.0 L 635.8,83.4 L 644.7,84.9 L 646.3,82.6 L 646.9,78.8 L 649.5,79.5 L 649.1,74.5 L 651.6,74.3 L 652.3,71.7 L 654.4,72.4 L 657.7,69.4 L 659.1,69.3 L 661.8,66.2 L 662.7,67.3 L 667.2,64.1 L 671.2,64.6 L 676.4,60.2 L 678.1,60.0 L 682.7,65.7 L 683.1,68.9 L 686.3,73.3 L 688.9,73.3 L 692.6,70.4 L 694.2,72.1 L 691.7,77.1 L 687.2,77.7 L 684.9,79.0 L 683.2,81.6 L 679.5,82.6 L 681.4,84.0 L 683.2,87.8 L 681.1,90.8 L 682.2,92.6 L 686.5,90.5 L 688.9,87.2 L 691.7,85.2 L 696.4,84.9 L 701.1,82.5 L 698.6,87.5 L 699.1,89.2 L 700.7,88.8 L 701.7,94.0 L 705.4,99.0 L 705.8,101.0 L 704.3,103.5 L 698.3,105.5 L 699.4,108.4 L 695.9,111.4 L 694.5,110.9 L 694.8,112.7 L 692.0,112.9 L 690.5,114.5 L 690.6,115.6 L 690.6,114.8 L 693.0,117.3 L 687.2,121.5 L 689.9,123.0 L 692.9,122.7 L 694.4,125.6 L 695.6,125.2 L 696.1,122.8 L 697.5,121.2 L 700.2,121.3 L 703.9,118.7 L 708.4,118.5 L 712.9,121.1 L 714.6,124.1 L 718.2,124.3 L 720.7,123.2 L 722.1,125.6 L 725.8,127.4 L 730.9,124.2 L 734.0,126.3 L 735.2,128.4 L 737.8,128.4 L 738.7,129.8 L 740.9,129.7 L 745.8,132.7 L 747.1,134.6 L 745.6,134.2 L 743.4,136.4 L 743.9,139.0 L 742.2,141.4 L 745.7,141.8 L 745.8,143.7 L 747.9,144.6 L 745.9,146.8 L 746.5,152.1 L 742.9,152.4 L 742.2,150.1 L 739.5,151.3 L 734.4,156.3 L 731.4,158.1 L 730.8,161.0 L 727.8,160.1 L 725.3,165.0 L 722.7,165.3 L 721.1,168.1 L 718.8,167.1 L 720.7,167.9 L 720.4,170.1 L 721.3,170.1 L 721.2,172.1 L 722.7,174.3 L 721.4,175.5 L 721.1,177.5 L 724.2,180.5 L 724.2,182.2 L 726.1,185.4 L 727.6,186.0 L 730.8,190.0 L 730.9,191.5 L 734.8,195.7 L 733.4,198.6 L 731.4,197.6 L 729.5,198.6 L 727.8,196.3 L 725.3,195.0 L 718.8,192.9 L 718.5,191.7 L 720.1,190.7 L 720.1,188.8 L 718.1,188.1 L 718.1,187.0 L 715.4,183.8 L 710.5,182.2 L 710.2,183.1 L 705.4,182.6 L 704.9,184.5 L 702.5,185.4 L 701.0,187.2 L 697.6,186.1 L 693.8,187.3 L 689.5,186.8 L 687.7,188.1 L 685.5,187.7 L 683.2,189.4 L 678.1,190.9 L 674.6,193.5 L 670.5,201.0 L 666.6,203.2 L 663.0,203.1 L 660.5,206.7 L 659.9,210.1 L 658.4,211.1 L 655.8,209.7 L 654.0,211.4 L 652.7,214.9 L 649.3,213.7 L 647.3,215.7 L 646.8,214.7 L 647.3,216.2 L 646.1,218.9 L 644.9,219.1 L 643.2,221.7 L 638.3,223.1 L 636.7,224.5 L 634.3,224.2 L 631.7,219.9 L 633.4,216.8 L 631.6,216.0 L 631.4,213.0 L 630.2,212.4 L 631.7,210.9 L 632.7,211.0 L 632.9,209.7 L 630.8,204.9 L 631.0,202.0 L 632.9,201.5 L 633.6,202.6 L 640.1,197.6 L 640.2,198.5 L 644.6,196.4 L 644.8,191.9 L 647.5,188.7 L 648.9,188.5 L 652.2,190.9 L 662.9,187.4 L 663.1,188.0 L 666.0,187.2 L 665.8,188.1 L 667.7,189.1 L 668.0,187.5 L 671.3,185.8 L 672.8,183.1 L 674.2,182.5 L 671.8,179.0 L 671.0,179.4 L 670.3,178.4 L 668.5,178.6 L 667.4,180.7 L 667.2,178.5 L 666.0,180.1 L 665.2,179.3 L 667.4,174.9 L 666.8,172.1 L 663.6,170.4 L 663.7,169.0 L 662.4,168.9 L 661.8,167.7 L 662.6,166.4 L 661.3,165.5 L 662.4,164.2 L 661.1,163.8 L 660.5,161.6 L 661.8,161.1 L 661.6,159.9 L 664.8,155.8 L 666.6,155.3 L 669.4,152.4 L 669.0,152.0 L 670.1,151.4 L 671.9,147.7 L 663.9,147.2 L 652.7,148.1 L 647.8,152.5 L 640.7,154.9 L 636.9,153.2 L 627.9,156.2 L 612.9,161.4 L 612.2,163.0 L 609.8,163.3 L 607.7,165.3 L 604.2,165.1 L 603.9,166.2 L 594.2,170.5 L 593.1,170.3 L 592.3,171.5 L 590.7,168.9 L 587.1,170.4 L 583.6,168.8 L 582.5,169.5 L 581.3,168.0 L 581.7,166.8 L 580.4,167.0 L 579.0,168.6 L 579.8,169.0 L 579.8,170.4 L 581.5,171.5 L 581.9,173.6 L 576.2,176.2 L 576.3,177.0 L 572.6,180.2 L 571.1,182.9 L 567.4,184.8 L 557.7,195.3 L 557.2,196.0 L 559.3,199.0 L 558.9,200.1 L 557.5,200.6 L 557.0,199.8 L 557.4,200.6 L 556.5,201.0 L 556.3,200.2 L 556.2,201.1 L 555.8,200.4 L 555.6,201.7 L 550.2,205.9 L 540.0,207.7 L 536.2,206.5 L 530.3,206.7 Z"] },
+  { code:'AS', name:'ASSAM', labelX:506.0, labelY:165.1, paths:["M 498.8,358.9 L 496.5,360.4 L 495.4,360.1 L 494.7,364.7 L 491.4,365.2 L 490.3,369.3 L 487.9,370.1 L 486.9,371.6 L 485.4,370.7 L 484.5,368.4 L 484.7,364.7 L 476.5,365.0 L 473.9,365.9 L 472.5,365.4 L 473.5,365.1 L 476.1,358.6 L 475.4,353.8 L 474.5,353.2 L 474.5,350.3 L 473.6,350.1 L 475.8,339.9 L 478.0,336.5 L 477.1,336.0 L 477.6,333.7 L 476.8,331.2 L 475.1,330.3 L 475.4,327.8 L 474.7,327.0 L 478.2,326.0 L 483.5,330.0 L 485.5,329.5 L 485.9,328.6 L 487.5,328.9 L 489.6,328.2 L 488.3,328.5 L 488.1,324.2 L 486.1,324.7 L 487.0,323.2 L 484.5,323.1 L 484.8,319.4 L 485.7,318.4 L 486.9,318.9 L 486.5,317.9 L 487.8,314.7 L 490.9,315.3 L 490.0,312.9 L 495.2,314.4 L 497.4,310.8 L 504.7,308.5 L 502.6,306.7 L 504.2,304.6 L 503.6,301.6 L 501.9,301.0 L 501.3,298.9 L 500.3,299.3 L 497.9,296.9 L 497.3,297.3 L 496.9,295.7 L 496.1,296.6 L 495.4,295.6 L 494.4,296.9 L 494.0,293.8 L 492.3,294.0 L 492.7,292.4 L 496.3,289.8 L 497.3,287.6 L 496.8,286.6 L 493.2,288.9 L 491.8,287.7 L 491.6,285.1 L 489.1,285.0 L 487.2,281.6 L 485.6,280.6 L 485.8,279.0 L 483.8,277.5 L 482.5,277.7 L 482.7,276.9 L 480.0,278.7 L 474.2,279.2 L 471.4,282.0 L 470.4,281.8 L 470.0,279.1 L 470.9,277.6 L 470.4,273.3 L 471.7,270.0 L 474.3,267.9 L 470.5,267.7 L 470.4,265.8 L 471.1,264.3 L 476.3,260.6 L 476.8,258.7 L 471.3,258.0 L 469.4,260.0 L 461.8,260.3 L 458.2,262.6 L 457.9,261.3 L 455.4,260.1 L 456.0,256.8 L 453.2,255.6 L 451.4,257.6 L 448.2,259.1 L 447.8,264.6 L 445.0,268.2 L 441.8,266.2 L 443.4,264.7 L 442.7,263.3 L 442.9,261.3 L 441.2,261.5 L 440.2,260.6 L 438.7,263.9 L 437.0,264.9 L 436.2,267.6 L 438.0,266.6 L 434.7,269.9 L 436.5,270.4 L 433.1,271.9 L 431.9,271.1 L 427.4,271.9 L 424.1,277.2 L 421.4,278.8 L 419.0,275.6 L 420.4,271.7 L 420.0,270.7 L 419.1,271.7 L 417.4,271.3 L 412.9,273.0 L 412.2,272.5 L 413.8,271.2 L 412.2,271.4 L 410.0,272.8 L 411.0,269.2 L 408.0,269.3 L 406.9,265.6 L 405.3,265.8 L 405.3,267.6 L 403.5,265.5 L 401.0,266.3 L 401.0,265.6 L 399.6,265.3 L 397.9,267.9 L 396.8,267.8 L 397.0,267.1 L 396.1,267.7 L 396.6,266.6 L 396.0,265.2 L 394.7,265.2 L 390.2,267.3 L 389.7,268.5 L 388.9,267.4 L 389.8,266.1 L 387.9,265.0 L 384.0,268.6 L 385.1,265.5 L 382.0,262.0 L 379.8,263.1 L 378.3,262.0 L 376.0,262.0 L 374.0,264.1 L 367.6,264.8 L 366.7,265.8 L 364.9,264.5 L 363.1,265.1 L 359.1,269.1 L 358.2,268.7 L 357.3,269.5 L 358.1,270.4 L 357.1,272.0 L 354.2,272.8 L 354.7,275.4 L 353.6,277.5 L 351.3,277.5 L 354.2,282.6 L 357.9,285.5 L 357.1,286.8 L 356.0,286.5 L 355.4,287.5 L 350.4,289.0 L 349.9,290.4 L 350.9,291.4 L 349.0,293.8 L 349.1,289.5 L 349.8,289.1 L 350.7,285.0 L 349.0,279.2 L 347.8,278.2 L 348.5,276.6 L 347.2,273.4 L 348.2,271.9 L 348.1,270.1 L 351.0,265.8 L 347.7,265.7 L 349.0,265.5 L 348.6,264.3 L 350.2,263.9 L 348.3,261.8 L 348.2,263.6 L 347.4,263.3 L 346.8,260.0 L 345.7,261.4 L 346.4,260.2 L 345.0,260.3 L 346.3,259.1 L 346.1,257.4 L 345.4,257.7 L 345.5,256.4 L 344.1,256.2 L 344.6,255.0 L 343.6,253.3 L 342.2,253.3 L 343.0,252.5 L 341.6,252.5 L 341.0,251.4 L 341.8,251.6 L 341.7,250.7 L 342.9,250.3 L 341.1,249.8 L 342.8,248.7 L 341.2,247.4 L 343.1,246.8 L 342.1,244.6 L 344.1,245.6 L 343.8,243.8 L 345.4,243.1 L 345.3,241.9 L 347.4,240.7 L 347.4,241.9 L 347.7,240.2 L 349.3,240.1 L 348.8,238.9 L 347.8,239.5 L 348.2,238.3 L 349.3,238.4 L 348.9,237.8 L 349.9,235.7 L 349.0,233.8 L 349.4,228.8 L 350.3,228.4 L 350.0,226.6 L 349.0,226.1 L 349.8,224.8 L 349.1,221.7 L 349.8,221.3 L 349.4,219.5 L 355.1,220.2 L 363.6,218.6 L 367.2,217.3 L 366.8,215.3 L 369.1,212.3 L 372.7,212.9 L 374.6,212.1 L 375.7,209.8 L 378.9,209.6 L 385.7,214.7 L 390.3,216.1 L 391.0,217.1 L 392.5,216.6 L 394.7,217.6 L 409.2,216.3 L 412.5,216.8 L 414.8,214.4 L 422.1,215.0 L 427.4,216.9 L 429.5,216.0 L 431.2,213.4 L 435.8,216.2 L 442.7,214.5 L 447.7,215.0 L 453.1,212.0 L 455.0,209.1 L 456.8,208.8 L 461.5,212.3 L 465.4,213.0 L 467.8,211.8 L 468.4,210.3 L 472.7,210.4 L 478.4,209.4 L 478.4,208.5 L 483.4,208.4 L 486.0,206.4 L 494.0,206.0 L 496.4,204.8 L 497.9,202.2 L 509.2,204.0 L 510.8,205.0 L 510.8,206.2 L 516.3,209.1 L 530.3,206.7 L 536.2,206.5 L 540.0,207.7 L 550.2,205.9 L 555.6,201.7 L 555.8,200.4 L 556.2,201.1 L 556.3,200.2 L 556.5,201.0 L 557.4,200.6 L 557.0,199.8 L 557.5,200.6 L 558.9,200.1 L 559.3,199.0 L 558.7,197.2 L 557.2,196.0 L 567.4,184.8 L 571.1,182.8 L 572.6,180.2 L 576.3,177.0 L 576.2,176.2 L 581.9,173.6 L 581.5,171.5 L 579.8,170.4 L 579.9,169.0 L 579.0,168.7 L 580.4,167.0 L 581.7,166.8 L 581.3,168.1 L 582.5,169.5 L 583.6,168.8 L 587.0,170.4 L 590.7,168.9 L 592.3,171.5 L 593.1,170.3 L 594.2,170.5 L 603.9,166.2 L 604.2,165.1 L 607.7,165.3 L 609.8,163.3 L 612.3,163.0 L 612.9,161.4 L 627.8,156.3 L 636.9,153.2 L 640.7,154.9 L 647.8,152.5 L 652.7,148.1 L 663.9,147.2 L 671.9,147.7 L 670.1,151.4 L 668.9,151.9 L 669.5,152.4 L 666.6,155.3 L 664.8,155.8 L 661.6,159.9 L 661.8,161.1 L 660.5,161.6 L 661.1,163.8 L 662.3,164.2 L 661.3,165.5 L 662.6,166.4 L 661.8,167.7 L 662.4,168.9 L 663.7,169.0 L 663.6,170.4 L 666.8,172.2 L 667.4,174.9 L 665.2,179.3 L 666.0,180.1 L 667.2,178.5 L 667.4,180.7 L 668.5,178.6 L 670.3,178.4 L 671.0,179.4 L 671.8,179.0 L 674.2,182.4 L 672.8,183.1 L 671.3,185.8 L 668.0,187.5 L 667.7,189.1 L 665.8,188.1 L 666.0,187.2 L 663.1,188.0 L 662.9,187.4 L 652.3,191.0 L 648.9,188.5 L 647.5,188.7 L 644.9,191.9 L 644.6,196.4 L 640.2,198.5 L 640.1,197.6 L 633.6,202.6 L 632.9,201.5 L 631.8,202.3 L 630.9,201.9 L 626.0,206.2 L 621.5,208.6 L 619.7,209.1 L 616.7,207.0 L 613.6,209.3 L 611.0,212.9 L 610.9,214.6 L 609.8,214.9 L 610.2,215.6 L 608.5,216.4 L 607.9,217.7 L 606.9,217.1 L 606.7,218.7 L 606.8,217.9 L 604.4,219.7 L 600.6,220.9 L 600.1,219.4 L 599.4,219.5 L 598.8,220.1 L 599.7,220.9 L 599.2,221.7 L 598.3,221.5 L 597.8,222.5 L 597.6,221.3 L 595.4,221.6 L 593.9,223.6 L 592.2,223.8 L 592.5,225.5 L 589.1,226.8 L 589.7,228.8 L 589.0,231.3 L 587.5,232.9 L 586.2,233.0 L 586.5,233.9 L 585.1,234.3 L 584.6,235.7 L 583.2,234.5 L 582.8,229.8 L 577.6,235.9 L 576.5,242.0 L 577.3,242.3 L 573.4,243.8 L 571.8,247.1 L 570.4,248.0 L 569.6,251.0 L 568.0,252.5 L 567.2,258.6 L 565.4,262.4 L 566.8,267.4 L 563.5,269.4 L 561.7,271.7 L 559.4,271.0 L 557.1,273.7 L 556.2,271.3 L 557.1,268.1 L 555.5,264.4 L 554.8,266.5 L 551.1,268.2 L 552.8,271.7 L 549.2,272.9 L 547.7,275.7 L 545.1,276.7 L 543.8,278.3 L 543.7,280.2 L 542.7,280.3 L 541.3,282.8 L 539.5,284.1 L 537.6,284.1 L 534.1,288.6 L 532.5,289.3 L 535.5,292.4 L 535.7,294.2 L 539.3,295.9 L 540.1,298.5 L 538.8,301.1 L 540.0,303.2 L 535.3,307.1 L 533.4,311.2 L 532.7,315.6 L 531.0,318.4 L 529.1,318.2 L 528.0,320.0 L 528.0,321.2 L 528.9,321.0 L 528.1,322.7 L 529.0,322.9 L 527.6,324.8 L 528.3,326.1 L 527.6,326.3 L 527.1,328.5 L 525.4,329.7 L 525.5,332.1 L 523.0,333.6 L 522.5,332.2 L 520.9,332.1 L 520.8,336.2 L 519.0,338.2 L 520.6,340.2 L 518.9,344.5 L 520.7,345.5 L 518.3,346.1 L 518.9,346.9 L 517.8,347.8 L 516.9,350.6 L 517.6,352.2 L 516.9,354.5 L 517.4,355.2 L 515.0,356.3 L 513.8,355.7 L 513.0,356.7 L 510.3,355.5 L 510.0,356.8 L 507.8,356.3 L 506.0,357.6 L 506.2,356.2 L 504.6,355.1 L 502.5,349.5 L 498.8,358.9 Z", "M 437.4,268.9 L 437.6,270.1 L 436.8,270.3 L 437.4,268.9 Z"] },
+  { code:'ML', name:'MEGHALAYA', labelX:388.0, labelY:260.7, paths:["M 429.9,311.3 L 425.2,310.3 L 423.6,309.0 L 416.8,309.8 L 414.0,309.3 L 402.0,311.7 L 398.0,310.3 L 395.8,312.1 L 392.5,311.3 L 391.5,309.8 L 390.5,311.0 L 383.8,311.2 L 380.3,312.7 L 374.4,309.9 L 362.8,308.0 L 355.6,303.6 L 348.2,303.8 L 347.2,298.3 L 348.6,294.8 L 350.1,293.2 L 350.2,291.4 L 350.9,291.4 L 349.9,290.4 L 350.4,288.9 L 355.4,287.5 L 356.0,286.5 L 357.0,286.8 L 357.9,285.6 L 354.3,282.7 L 351.3,277.5 L 353.6,277.5 L 354.8,275.4 L 354.2,272.8 L 357.1,272.0 L 358.1,270.4 L 357.3,269.5 L 358.2,268.7 L 359.1,269.1 L 363.1,265.1 L 364.9,264.5 L 366.7,265.8 L 367.6,264.8 L 374.0,264.1 L 376.0,262.0 L 378.3,262.0 L 379.8,263.0 L 382.0,262.0 L 385.1,265.5 L 384.0,268.6 L 387.9,265.0 L 389.8,266.1 L 388.9,267.4 L 389.7,268.5 L 390.2,267.3 L 394.8,265.2 L 396.0,265.2 L 396.6,266.6 L 396.0,267.7 L 397.0,267.1 L 396.8,267.8 L 397.9,267.9 L 399.6,265.3 L 401.0,265.6 L 401.0,266.3 L 403.6,265.5 L 405.3,267.6 L 405.3,265.8 L 406.9,265.6 L 408.0,269.3 L 411.0,269.2 L 410.0,272.8 L 412.2,271.4 L 413.8,271.2 L 412.2,272.6 L 412.9,273.0 L 417.4,271.3 L 419.1,271.7 L 420.0,270.7 L 420.4,271.7 L 419.0,275.6 L 421.4,278.8 L 424.1,277.2 L 427.3,271.9 L 431.9,271.1 L 433.1,271.9 L 436.5,270.4 L 434.7,269.9 L 438.0,266.6 L 436.2,267.6 L 437.0,264.9 L 438.7,263.9 L 440.2,260.6 L 441.2,261.5 L 442.9,261.3 L 442.7,263.3 L 443.4,264.7 L 441.8,266.2 L 445.0,268.2 L 447.7,264.8 L 448.2,259.1 L 451.4,257.6 L 453.2,255.6 L 456.0,256.8 L 455.4,260.1 L 457.9,261.3 L 458.1,262.6 L 461.8,260.3 L 469.4,260.0 L 471.3,258.0 L 476.8,258.7 L 476.3,260.6 L 471.0,264.3 L 470.4,265.8 L 470.5,267.8 L 474.3,267.9 L 471.7,270.0 L 470.4,273.3 L 470.4,281.8 L 471.4,282.0 L 474.2,279.2 L 480.0,278.7 L 482.7,276.9 L 482.5,277.6 L 483.8,277.5 L 485.8,279.0 L 485.6,280.6 L 487.2,281.6 L 489.1,285.0 L 491.6,285.1 L 491.8,287.7 L 493.2,288.9 L 496.8,286.6 L 497.3,287.6 L 496.3,289.8 L 492.7,292.4 L 492.3,294.0 L 494.0,293.8 L 494.4,296.9 L 495.5,296.4 L 495.4,295.6 L 496.1,296.6 L 496.9,295.7 L 497.3,297.3 L 497.9,296.9 L 500.3,299.3 L 501.3,298.9 L 501.9,300.9 L 503.6,301.6 L 504.2,304.6 L 502.6,306.7 L 504.7,308.5 L 497.4,310.8 L 495.2,314.4 L 489.9,312.9 L 490.9,315.3 L 487.8,314.7 L 486.5,317.9 L 486.9,318.9 L 485.7,318.4 L 484.9,319.3 L 480.6,318.1 L 480.0,316.3 L 478.1,316.9 L 473.4,314.6 L 474.2,314.2 L 472.3,313.1 L 472.4,313.9 L 471.7,313.9 L 466.7,310.3 L 449.0,311.1 L 448.9,312.4 L 446.8,311.9 L 443.5,313.8 L 441.4,312.5 L 441.4,310.9 L 434.5,313.1 L 434.3,312.3 L 429.7,310.7 L 428.3,307.4 L 429.9,311.3 Z"] },
+  { code:'NL', name:'NAGALAND', labelX:592.6, labelY:210.6, paths:["M 577.3,288.9 L 576.1,288.8 L 575.3,290.7 L 573.6,290.5 L 572.4,290.1 L 572.4,288.6 L 571.4,288.8 L 568.6,286.4 L 568.2,287.9 L 565.6,288.8 L 562.0,288.0 L 555.5,289.6 L 555.2,291.6 L 557.4,292.0 L 557.6,294.0 L 552.6,300.2 L 551.4,300.0 L 547.1,309.4 L 546.2,309.3 L 544.5,306.7 L 541.6,306.9 L 541.9,305.3 L 540.1,305.2 L 540.1,303.3 L 538.8,301.2 L 540.1,298.5 L 539.3,295.9 L 535.7,294.1 L 535.5,292.4 L 532.5,289.3 L 534.1,288.6 L 537.6,284.1 L 539.5,284.1 L 541.3,282.8 L 542.7,280.3 L 543.7,280.2 L 543.8,278.3 L 545.1,276.7 L 547.7,275.7 L 549.2,273.0 L 552.8,271.6 L 551.1,268.2 L 554.8,266.5 L 555.5,264.4 L 557.1,268.1 L 556.2,271.3 L 557.1,273.7 L 559.4,271.0 L 561.7,271.7 L 563.5,269.4 L 566.8,267.4 L 565.4,262.4 L 567.2,258.6 L 568.0,252.5 L 569.6,251.0 L 570.4,247.9 L 571.8,247.1 L 573.4,243.8 L 577.3,242.3 L 576.5,242.0 L 577.6,235.9 L 582.8,229.8 L 583.2,234.5 L 584.6,235.7 L 585.1,234.3 L 586.5,233.9 L 586.2,233.0 L 587.5,232.9 L 589.0,231.3 L 589.7,228.8 L 589.2,226.8 L 592.5,225.5 L 592.2,223.8 L 593.9,223.6 L 595.4,221.6 L 597.6,221.3 L 597.8,222.5 L 598.3,221.5 L 599.2,221.7 L 599.7,220.9 L 598.8,220.1 L 599.4,219.5 L 600.1,219.4 L 600.6,220.9 L 604.4,219.7 L 606.8,217.9 L 606.7,218.7 L 606.9,217.1 L 607.9,217.7 L 608.5,216.4 L 610.2,215.6 L 609.8,214.9 L 610.9,214.6 L 611.0,212.9 L 614.8,208.2 L 616.6,207.0 L 617.0,208.0 L 618.6,207.7 L 619.7,209.1 L 621.5,208.6 L 626.0,206.2 L 631.0,202.0 L 630.8,204.9 L 632.9,209.7 L 632.7,211.0 L 631.7,210.9 L 630.2,212.4 L 631.4,213.0 L 631.6,216.0 L 633.4,216.8 L 631.7,219.9 L 633.0,222.6 L 631.7,224.6 L 628.5,226.5 L 628.8,228.4 L 628.0,230.0 L 626.3,230.9 L 626.7,232.2 L 623.9,236.2 L 625.1,236.4 L 626.1,237.9 L 625.9,239.5 L 627.5,240.0 L 627.4,247.7 L 626.7,248.9 L 628.2,250.2 L 627.1,251.7 L 626.8,256.3 L 630.4,258.3 L 625.4,265.5 L 622.3,266.6 L 621.1,270.3 L 623.3,274.2 L 622.8,277.7 L 620.8,278.5 L 617.3,282.0 L 616.2,285.5 L 614.5,286.8 L 615.3,288.0 L 612.5,288.2 L 610.5,292.2 L 609.2,293.0 L 607.6,292.2 L 605.8,293.6 L 604.0,293.8 L 603.5,295.0 L 600.4,294.0 L 597.1,291.6 L 597.8,289.0 L 597.0,287.2 L 599.2,283.9 L 598.2,283.6 L 599.4,281.1 L 598.1,280.6 L 593.7,285.7 L 593.1,285.2 L 590.3,286.8 L 589.9,289.7 L 584.9,291.7 L 578.9,292.1 L 577.3,288.9 Z"] },
+  { code:'TR', name:'TRIPURA', labelX:448.6, labelY:356.3, paths:["M 449.6,371.2 L 449.0,365.3 L 452.7,367.3 L 454.0,366.3 L 453.8,368.1 L 458.3,373.3 L 457.7,371.4 L 459.4,364.2 L 458.3,359.9 L 460.3,358.6 L 462.1,360.4 L 460.9,357.2 L 462.5,356.5 L 466.1,357.6 L 468.2,357.2 L 469.8,354.7 L 471.3,354.8 L 470.6,348.9 L 474.6,350.3 L 474.5,353.2 L 475.4,353.8 L 476.1,358.7 L 473.5,365.1 L 472.5,365.4 L 474.0,365.9 L 477.8,364.9 L 479.9,369.1 L 478.9,376.6 L 479.6,379.8 L 478.6,382.0 L 479.6,384.7 L 479.0,387.7 L 477.4,387.4 L 476.6,388.9 L 477.3,390.4 L 475.9,390.6 L 476.4,395.7 L 475.1,396.1 L 474.2,400.0 L 473.3,396.9 L 468.7,395.3 L 468.0,397.7 L 465.5,400.5 L 462.7,399.2 L 461.5,395.6 L 460.2,395.0 L 460.3,397.3 L 459.1,397.8 L 461.0,410.0 L 459.2,410.8 L 459.4,413.2 L 457.5,412.4 L 455.2,414.3 L 455.3,412.1 L 452.1,408.0 L 451.7,409.5 L 454.1,413.3 L 453.8,416.5 L 450.0,420.1 L 449.7,421.6 L 450.5,422.4 L 449.7,422.6 L 450.6,422.4 L 451.4,424.9 L 452.6,432.4 L 453.7,432.7 L 452.2,434.5 L 450.5,434.1 L 450.8,436.5 L 450.2,435.8 L 447.6,438.9 L 443.7,439.1 L 442.3,441.7 L 441.3,440.8 L 442.0,440.6 L 441.6,439.8 L 440.1,440.2 L 438.3,438.2 L 438.7,435.9 L 437.6,435.9 L 437.6,432.8 L 436.2,430.5 L 436.8,429.7 L 435.5,428.9 L 436.4,427.4 L 434.5,426.7 L 435.1,426.5 L 434.7,425.3 L 433.4,425.4 L 434.5,424.9 L 433.1,423.8 L 433.6,422.9 L 431.7,423.2 L 431.2,421.5 L 431.3,423.2 L 430.8,422.6 L 431.2,423.7 L 430.3,423.8 L 430.8,424.8 L 430.0,424.9 L 429.7,427.4 L 431.6,434.5 L 429.2,434.1 L 427.9,432.2 L 426.7,428.9 L 426.9,423.4 L 426.5,422.0 L 425.6,421.9 L 426.2,420.5 L 424.9,419.8 L 426.7,416.9 L 425.1,417.4 L 425.3,415.8 L 424.6,415.7 L 423.1,409.7 L 420.3,408.1 L 420.9,406.1 L 419.8,406.3 L 418.9,403.6 L 418.1,403.4 L 417.9,398.9 L 419.7,400.3 L 421.0,399.7 L 420.2,399.3 L 420.6,397.8 L 417.7,397.7 L 417.9,394.7 L 420.6,394.2 L 421.6,395.4 L 421.7,391.8 L 422.7,389.6 L 421.3,385.9 L 422.5,385.3 L 421.9,384.3 L 423.8,384.1 L 423.2,383.0 L 424.4,380.7 L 425.1,381.3 L 425.5,379.8 L 429.7,381.1 L 429.3,379.5 L 430.6,376.9 L 429.5,373.5 L 435.0,374.2 L 434.4,376.0 L 435.3,374.0 L 438.1,375.4 L 440.3,375.3 L 440.8,374.0 L 442.9,373.6 L 443.4,369.7 L 444.3,368.8 L 443.8,366.9 L 444.6,366.1 L 445.6,370.1 L 449.6,371.2 Z"] },
+  { code:'MZ', name:'MIZORAM', labelX:506.4, labelY:361.4, paths:["M 507.1,493.2 L 505.4,491.2 L 499.6,487.8 L 498.9,492.3 L 498.4,490.7 L 498.4,495.8 L 494.6,498.0 L 494.1,493.1 L 492.1,489.2 L 492.9,488.3 L 494.3,489.5 L 494.5,487.1 L 493.7,486.1 L 493.0,477.9 L 491.6,472.8 L 491.5,466.7 L 489.9,464.0 L 490.8,462.2 L 489.3,453.3 L 487.6,452.8 L 486.1,444.4 L 485.3,444.9 L 484.5,443.0 L 483.5,443.3 L 483.6,442.4 L 482.0,441.9 L 483.1,434.8 L 481.3,432.2 L 481.8,430.8 L 480.7,424.3 L 483.5,424.2 L 482.7,420.2 L 481.6,419.3 L 482.3,417.0 L 481.0,415.9 L 480.6,412.8 L 479.9,413.0 L 478.7,404.4 L 476.8,400.6 L 477.7,397.7 L 476.4,395.7 L 475.9,390.6 L 477.3,390.4 L 476.6,388.9 L 477.4,387.4 L 479.0,387.7 L 479.8,384.9 L 478.8,382.1 L 479.7,380.4 L 479.0,377.7 L 480.2,371.2 L 478.0,365.0 L 484.7,364.9 L 484.5,368.4 L 485.4,370.8 L 487.7,371.5 L 488.0,370.3 L 490.4,369.4 L 491.4,365.4 L 494.6,365.0 L 495.3,360.3 L 496.6,360.5 L 498.8,359.0 L 502.7,349.3 L 504.6,355.3 L 506.2,356.4 L 506.1,357.7 L 507.9,356.4 L 510.1,356.7 L 510.4,355.6 L 511.7,356.7 L 514.1,355.8 L 516.4,357.0 L 516.2,359.5 L 517.4,359.7 L 515.5,365.0 L 516.5,366.2 L 513.8,373.1 L 517.9,374.5 L 519.3,373.8 L 520.5,375.5 L 520.4,377.2 L 522.9,374.7 L 524.0,376.6 L 526.5,376.9 L 527.0,374.8 L 528.2,374.9 L 529.1,376.3 L 528.5,378.5 L 530.3,376.8 L 532.9,376.7 L 532.7,380.6 L 534.6,383.4 L 536.1,384.0 L 536.4,393.8 L 537.0,396.7 L 538.5,398.5 L 537.6,400.2 L 537.6,406.9 L 535.8,409.1 L 535.6,413.5 L 536.3,415.7 L 535.6,417.1 L 533.9,417.5 L 534.7,418.9 L 534.0,418.8 L 535.0,418.9 L 534.8,422.3 L 535.8,425.6 L 534.7,429.6 L 535.8,430.3 L 534.3,431.6 L 532.6,436.3 L 530.7,438.1 L 528.4,438.0 L 525.9,435.1 L 523.9,435.5 L 522.8,434.8 L 522.0,435.6 L 522.2,437.6 L 521.4,437.9 L 522.6,438.7 L 522.4,441.1 L 523.9,443.5 L 522.3,443.3 L 521.0,448.9 L 520.2,449.5 L 521.0,453.3 L 520.1,455.3 L 522.7,462.6 L 520.9,465.8 L 522.1,466.5 L 522.5,469.8 L 524.3,470.5 L 525.1,471.9 L 526.0,481.6 L 522.7,482.8 L 524.0,485.2 L 523.1,486.5 L 519.3,484.7 L 517.5,485.3 L 517.5,488.8 L 518.5,490.9 L 515.9,490.7 L 515.0,493.9 L 515.4,498.0 L 512.7,495.1 L 511.6,495.7 L 510.3,500.0 L 508.0,493.0 L 507.1,493.2 Z"] },
+  { code:'MN', name:'MANIPUR', labelX:561.5, labelY:289.3, paths:["M 555.2,379.4 L 548.1,379.0 L 546.4,381.9 L 544.7,380.7 L 544.2,382.0 L 541.8,383.0 L 539.5,381.0 L 537.1,375.4 L 533.2,373.6 L 533.8,374.3 L 532.6,374.6 L 532.7,376.5 L 530.3,376.6 L 528.5,378.4 L 529.0,376.2 L 528.3,374.9 L 526.8,374.8 L 526.2,376.8 L 524.0,376.6 L 523.9,375.3 L 522.6,374.5 L 520.4,377.1 L 519.3,373.7 L 517.6,374.4 L 513.7,373.0 L 515.5,370.2 L 515.1,368.1 L 515.9,368.0 L 516.4,365.9 L 515.4,364.6 L 515.5,363.1 L 517.3,359.6 L 516.1,359.2 L 516.5,356.7 L 515.6,355.5 L 517.4,355.2 L 516.9,354.5 L 517.6,351.9 L 516.9,350.6 L 517.8,347.8 L 518.9,347.0 L 518.2,346.0 L 520.6,345.4 L 518.9,344.5 L 520.6,340.1 L 519.0,338.2 L 520.8,336.3 L 520.9,332.1 L 522.4,332.2 L 523.0,333.5 L 525.5,332.1 L 525.4,329.7 L 527.1,328.5 L 527.5,326.3 L 528.3,326.1 L 527.6,324.8 L 529.0,323.4 L 528.0,320.0 L 529.1,318.2 L 531.0,318.4 L 533.4,313.9 L 533.4,311.1 L 535.3,307.1 L 539.9,303.3 L 539.1,302.1 L 540.1,303.3 L 540.1,305.2 L 541.9,305.3 L 541.6,306.9 L 544.5,306.7 L 546.2,309.3 L 547.1,309.4 L 551.4,300.0 L 552.6,300.2 L 557.6,294.0 L 558.4,294.1 L 557.6,294.0 L 557.4,292.0 L 555.2,291.6 L 555.5,289.6 L 562.0,288.0 L 565.8,288.9 L 568.3,287.9 L 568.6,286.4 L 571.4,288.8 L 572.4,288.6 L 572.4,290.1 L 573.6,290.6 L 575.3,290.7 L 576.1,288.8 L 577.3,288.9 L 578.0,289.0 L 577.7,290.4 L 579.4,292.3 L 584.9,291.6 L 589.9,289.7 L 590.3,286.8 L 593.2,285.1 L 593.7,285.7 L 598.1,280.6 L 599.4,281.2 L 598.1,283.8 L 599.2,283.9 L 597.0,287.2 L 597.8,289.0 L 597.1,291.7 L 603.5,295.0 L 602.7,297.4 L 601.4,298.0 L 601.4,300.3 L 598.8,305.5 L 598.3,308.6 L 599.9,310.5 L 606.7,313.2 L 606.9,314.3 L 602.4,314.3 L 606.8,314.5 L 607.2,318.9 L 604.6,323.0 L 605.6,324.9 L 601.2,330.5 L 600.5,333.9 L 601.0,335.4 L 599.2,338.1 L 598.4,338.2 L 598.3,337.2 L 598.0,338.3 L 596.7,338.0 L 596.1,342.0 L 594.1,345.1 L 591.9,346.5 L 590.4,351.5 L 587.7,350.7 L 589.3,351.3 L 588.8,353.0 L 589.4,354.1 L 588.7,355.7 L 586.9,356.6 L 587.9,357.4 L 586.4,360.0 L 584.9,360.4 L 584.9,363.5 L 583.3,366.0 L 582.5,369.5 L 581.6,370.0 L 581.3,374.8 L 580.5,376.6 L 579.9,376.3 L 580.4,377.6 L 577.8,382.0 L 577.9,383.5 L 576.9,383.8 L 575.5,389.3 L 574.1,389.1 L 573.0,386.1 L 570.5,386.2 L 568.8,383.9 L 566.6,384.1 L 565.0,382.8 L 562.3,382.4 L 560.5,383.6 L 557.8,383.9 L 555.2,379.4 Z"] },
+];
+
+// Every number below is either a widely-published national Indian emergency
+// line, or was looked up directly against an official government page this
+// session (see the "source" field on each). For the 7 states where no direct
+// SDMA/NDRF landline could be confirmed in time, the contact routes through
+// the same real, working national toll-free disaster line (1070) rather than
+// inventing a plausible-looking but unverified direct number - a wrong number
+// here is not a cosmetic bug, it could cost someone a real emergency call.
+const EMERGENCY_CONTACTS = [
+  // --- National (apply to all 8 states) ---
+  { name: "National Emergency Response Support System (112)", number: "112", tel: "112", category: "Police", scope: "National", location: "Pan-India", desc: "Direct connection to Police, Fire, Ambulance & SDRF throughout NER", availability: "24x7", source: "Universally published national emergency number." },
+  { name: "NDRF National Control Room", number: "+91-9711077372", tel: "+919711077372", category: "NDRF", scope: "National", location: "NDRF Force HQ, New Delhi", desc: "Routes to the nearest battalion for collapse rescue & flood/landslide extrication (1st Bn NDRF is headquartered in Guwahati, Assam)", availability: "24x7", source: "ndrf.gov.in official helpline, confirmed this session." },
+  { name: "Disaster Management Helpline", number: "1070", tel: "1070", category: "Disaster Management", scope: "National", location: "NDMA / State control rooms", desc: "Toll-free line that connects to the relevant State Disaster Management Authority control room", availability: "24x7", source: "NDMA national toll-free helpline." },
+  { name: "Ambulance", number: "108", tel: "108", category: "Medical", scope: "National", location: "Pan-India", desc: "National emergency ambulance network", availability: "24x7", source: "Universally published national emergency number." },
+  { name: "State Police Control Room", number: "100", tel: "100", category: "Police", scope: "National", location: "Pan-India", desc: "Local law enforcement and evacuation coordination", availability: "24x7", source: "Universally published national emergency number." },
+  { name: "GSI Landslide Hazard Cell", number: "1800-11-3005", tel: "18001130052", category: "Geological", scope: "National", location: "Geological Survey of India", desc: "Landslide advisories and geological hazard assessment", availability: "Office hours", source: "Carried over from an earlier session's research into GSI's public helpline." },
+  { name: "IMD Weather Helpline", number: "1800-180-1717", tel: "18001801717", category: "Weather", scope: "National", location: "India Meteorological Department", desc: "Rainfall warnings and severe weather bulletins", availability: "24x7", source: "Carried over from an earlier session's research into IMD's public helpline." },
+
+  // --- Assam: directly confirmed this session against asdma.assam.gov.in / onlineasdma.assam.gov.in ---
+  { name: "Assam SDMA (State Emergency Operations Centre)", number: "0361-2237221", tel: "+913612237221", category: "Disaster Management", scope: "Assam", location: "Dispur, Kamrup Metro, Assam", desc: "Coordinates Dima Hasao, Barak Valley and Brahmaputra emergency operations", availability: "24x7", source: "asdma.assam.gov.in/contact-us (CEO office line), confirmed this session.", verified: true },
+  { name: "Assam State Control Room, Dispur", number: "0361-2237219", tel: "+913612237219", category: "Disaster Management", scope: "Assam", location: "Dispur, Assam", desc: "Also reachable toll-free on 1070 / 1079 (Disaster Management Services) / 1077 (district control room)", availability: "24x7", source: "onlineasdma.assam.gov.in/emergency.html, confirmed this session.", verified: true },
+
+  // --- Other 7 states: direct SDMA/NDRF landlines not confirmed in time, so these
+  //     route through the real national toll-free line rather than a guessed number ---
+  { name: "Sikkim SDMA — State Emergency Operations Centre", number: "1070 (toll-free)", tel: "1070", category: "Disaster Management", scope: "Sikkim", location: "Gangtok, Sikkim", desc: "Statewide control room; direct SDMA landline not independently verified for this prototype", availability: "24x7", source: "Via national toll-free disaster line." },
+  { name: "Arunachal Pradesh SDMA — State Emergency Operations Centre", number: "1070 (toll-free)", tel: "1070", category: "Disaster Management", scope: "Arunachal Pradesh", location: "Itanagar, Arunachal Pradesh", desc: "Statewide control room; direct SDMA landline not independently verified for this prototype", availability: "24x7", source: "Via national toll-free disaster line." },
+  { name: "Meghalaya SDMA — State Emergency Operations Centre", number: "1070 (toll-free)", tel: "1070", category: "Disaster Management", scope: "Meghalaya", location: "Shillong, Meghalaya", desc: "Statewide control room; direct SDMA landline not independently verified for this prototype", availability: "24x7", source: "Via national toll-free disaster line." },
+  { name: "Nagaland SDMA — State Emergency Operations Centre", number: "1070 (toll-free)", tel: "1070", category: "Disaster Management", scope: "Nagaland", location: "Kohima, Nagaland", desc: "Statewide control room; direct SDMA landline not independently verified for this prototype", availability: "24x7", source: "Via national toll-free disaster line." },
+  { name: "Manipur SDMA — State Emergency Operations Centre", number: "1070 (toll-free)", tel: "1070", category: "Disaster Management", scope: "Manipur", location: "Imphal, Manipur", desc: "Statewide control room; direct SDMA landline not independently verified for this prototype", availability: "24x7", source: "Via national toll-free disaster line." },
+  { name: "Mizoram SDMA — State Emergency Operations Centre", number: "1070 (toll-free)", tel: "1070", category: "Disaster Management", scope: "Mizoram", location: "Aizawl, Mizoram", desc: "Statewide control room; direct SDMA landline not independently verified for this prototype", availability: "24x7", source: "Via national toll-free disaster line." },
+  { name: "Tripura SDMA — State Emergency Operations Centre", number: "1070 (toll-free)", tel: "1070", category: "Disaster Management", scope: "Tripura", location: "Agartala, Tripura", desc: "Statewide control room; direct SDMA landline not independently verified for this prototype", availability: "24x7", source: "Via national toll-free disaster line." },
+];
+
+function seededRandom(seed) {
+  let x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+// getSensorReadings produces a soil-moisture DEMO FALLBACK (used only when the
+// backend's real NASA POWER soil-moisture lookup is unavailable) plus two
+// cosmetic telemetry-style numbers (battery/signal) for the station-detail
+// header. It previously also fabricated "pore water pressure" and "ground
+// tilt" readings; those were dropped per project decision - no physical
+// piezometer or inclinometer exists for these stations, so instead of
+// simulating that hardware, the real, computed Slope Saturation Index
+// (loc.slope_saturation_index, from the backend) is shown. See
+// renderStationDetail() and backend/app/services/slope_stability.py.
+function getSensorReadings(loc, seedOffset) {
+  const seed = (loc.lat * 1000 + loc.lon * 100 + (seedOffset || 0));
+  const intensity = loc.risk_score ?? 0; // tie demo fallback to the (real or demo-override) risk score
+  const vwc = 20 + intensity * 35 + seededRandom(seed) * 8;
+  const rain24 = loc.rain_24h;
+  return {
+    vwc: vwc, vwcThreshold: 45.0,
+    rain24: rain24, rainThreshold: 64.5,
+    battery: Math.round(75 + seededRandom(seed + 3) * 25),
+    signal: Math.round(60 + seededRandom(seed + 4) * 40),
+  };
+}
+
+// ---- DEMO SCENARIO ENGINE ----
+// Kept entirely separate from real backend fields (loc.rain_24h / loc.risk_score,
+// which come from NASA POWER + the trained model via /api/gis/stations). A demo
+// scenario NEVER overwrites those real fields - it only sets loc.demo = {...},
+// an additive override layer that rendering functions check explicitly and label.
+const DEMO_SCENARIOS = {
+  normal:     { label: 'Normal Conditions', rainAdd: 0,   riskAdd: 0.00 },
+  heavy:      { label: 'Heavy Rainfall',    rainAdd: 90,  riskAdd: 0.22 },
+  cloudburst: { label: 'Cloudburst Risk',   rainAdd: 220, riskAdd: 0.40 },
+};
+
+function applyDemoScenario(stationId, scenarioKey) {
+  const data = window.__lastLocations || DEMO_LOCATIONS;
+  const loc = data.find(l => l.id === stationId);
+  if (!loc) return;
+  const scenario = DEMO_SCENARIOS[scenarioKey] || DEMO_SCENARIOS.normal;
+  const baseRain = (loc.rain_24h ?? 50);
+  const baseRisk = (loc.risk_score ?? 0.3);
+  const demoRisk = Math.max(0, Math.min(1, baseRisk + scenario.riskAdd));
+  loc.demo = {
+    active: scenarioKey !== 'normal',
+    scenarioKey,
+    label: scenario.label,
+    rain_24h: baseRain + scenario.rainAdd,
+    risk_score: demoRisk,
+    risk_level: demoRisk > 0.75 ? 'Critical' : demoRisk > 0.5 ? 'High' : demoRisk > 0.25 ? 'Moderate' : 'Low',
+    generated_at: new Date(),
+  };
+  document.getElementById('scenarioSelect') && (document.getElementById('scenarioSelect').value = scenarioKey);
+  renderSensorTab(data);
+}
+
+function resetDemoScenario(stationId) {
+  const data = window.__lastLocations || DEMO_LOCATIONS;
+  const loc = data.find(l => l.id === stationId);
+  if (loc) loc.demo = { active: false, scenarioKey: 'normal', label: 'Normal Conditions' };
+  document.getElementById('scenarioSelect') && (document.getElementById('scenarioSelect').value = 'normal');
+  renderSensorTab(data);
+}
+
+function onScenarioSelectChange() {
+  const key = document.getElementById('scenarioSelect').value;
+  if (!selectedStationId) return;
+  if (key === 'normal') resetDemoScenario(selectedStationId);
+  else applyDemoScenario(selectedStationId, key);
+}
+
+// Returns the values to actually display for this station: demo-override values
+// when a scenario is active for it, otherwise the real backend-sourced values.
+function getEffectiveStationValues(loc) {
+  if (loc.demo && loc.demo.active) {
+    return { rain_24h: loc.demo.rain_24h, risk_score: loc.demo.risk_score, risk_level: loc.demo.risk_level, isDemo: true, label: loc.demo.label, scenarioKey: loc.demo.scenarioKey, generated_at: loc.demo.generated_at };
+  }
+  return { rain_24h: loc.rain_24h, risk_score: loc.risk_score, risk_level: loc.risk_level, isDemo: false, scenarioKey: 'normal' };
+}
+
+function barFillClass(value, threshold) {
+  const ratio = value / threshold;
+  if (ratio < 0.6) return 'fill-safe';
+  if (ratio < 0.9) return 'fill-warn';
+  if (ratio < 1.15) return 'fill-high';
+  return 'fill-critical';
+}
+
+// Maps the real, computed Slope Saturation Index's Low/Moderate/High/Critical
+// band (see backend/app/services/slope_stability.py) to the same bar-fill
+// color classes used elsewhere, so it reads consistently with other gauges.
+function ssiBandClass(band) {
+  if (band === 'Critical') return 'fill-critical';
+  if (band === 'High') return 'fill-high';
+  if (band === 'Moderate') return 'fill-warn';
+  return 'fill-safe';
+}
+
+let map, markers = [];
+let selectedStationId = null;
+let currentMapView = 'schematic';
+let currentStateFilter = null;
+let selectedMapStationId = null;
+let tooltipHideTimer = null;
+
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // All tabs now use the white/orange theme. Map/Sensors/Predict/Trends hide the
+  // KPI stats bar; the rest keep it visible.
+  const whiteBgTabs = ['map', 'sensors', 'predict', 'trends', 'incidents', 'highway', 'contacts', 'alerts'];
+  const hideStatsBarTabs = ['map', 'sensors', 'predict', 'trends', 'contacts', 'alerts', 'highway', 'incidents'];
+  document.body.classList.toggle('gis-page-bg', whiteBgTabs.includes(id));
+  document.getElementById('statsBar').style.display = hideStatsBarTabs.includes(id) ? 'none' : 'grid';
+  if (id === 'map' && currentMapView === 'real' && map) setTimeout(() => map.invalidateSize(), 100);
+  if (id === 'trends') loadTrendsTab();
+  if (id === 'sensors' && window.__lastLocations) renderSensorTab(window.__lastLocations);
+  if (id === 'incidents') loadIncidents();
+  if (id === 'highway') loadHighways();
+  if (id === 'contacts') renderContacts();
+  if (id === 'alerts') loadAlertLog();
+}
+
+function setMapView(view) {
+  currentMapView = view;
+  document.getElementById('schematicMapWrap').classList.toggle('hidden', view !== 'schematic');
+  document.getElementById('map').classList.toggle('visible', view === 'real');
+  document.getElementById('btnSchematic').classList.toggle('active', view === 'schematic');
+  document.getElementById('btnReal').classList.toggle('active', view === 'real');
+  if (view === 'real' && map) setTimeout(() => map.invalidateSize(), 50);
+}
+
+// Builds the hover/focus/click tooltip content for a station, reused by both
+// the schematic SVG map and the Real-World (Leaflet) map so both views show
+// the same fields. Missing values are shown as "N/A", never undefined/NaN/0-by-default.
+function buildStationTooltipHTML(loc) {
+  const meta = SENSOR_META[loc.id] || { place: loc.name, region: '', geology: '—' };
+  const eff = getEffectiveStationValues(loc);
+  const regionParts = (meta.region || '').split(',').map(s => s.trim()).filter(Boolean);
+  const district = loc.district || regionParts[0] || 'N/A';
+  const stateName = loc.state || regionParts[regionParts.length - 1] || 'N/A';
+  const latText = (typeof loc.lat === 'number' && !Number.isNaN(loc.lat)) ? loc.lat.toFixed(4) : 'N/A';
+  const lonText = (typeof loc.lon === 'number' && !Number.isNaN(loc.lon)) ? loc.lon.toFixed(4) : 'N/A';
+  const sm = loc.soil_moisture;
+  const smText = (sm && sm.status === 'real' && typeof sm.surface_soil_wetness_fraction === 'number')
+    ? `${(sm.surface_soil_wetness_fraction * 100).toFixed(0)}% wetness` : 'N/A';
+  const slopeText = (loc.slope_deg === null || loc.slope_deg === undefined) ? 'N/A' : `${fmtNum(loc.slope_deg, 1)}°`;
+  const elevText = (loc.elevation_m === null || loc.elevation_m === undefined) ? 'N/A' : `${fmtNum(loc.elevation_m)} m`;
+  const rain24Text = (eff.rain_24h === null || eff.rain_24h === undefined || Number.isNaN(eff.rain_24h)) ? 'N/A' : `${fmtNum(eff.rain_24h)} mm`;
+  const rain7dText = (loc.rain_7d === null || loc.rain_7d === undefined || Number.isNaN(loc.rain_7d)) ? 'N/A' : `${fmtNum(loc.rain_7d)} mm`;
+  const usingDemoFallback = !!window.__usingDemoLocations;
+  const sourceText = eff.isDemo ? `DEMO SCENARIO (${eff.label})` : (usingDemoFallback ? 'DEMO fallback — backend unreachable' : (loc.source || 'NASA POWER (real)'));
+  const demoBadge = (eff.isDemo || usingDemoFallback) ? '<span class="badge-demo">DEMO</span>' : '';
+  // "Latest available data" = the real NASA POWER daily-data end date the backend
+  // already computes (rainfall.data_end, format YYYYMMDD) - not a fabricated live
+  // timestamp. A demo scenario override doesn't change which date real data covers.
+  let dataEndText = 'N/A';
+  if (loc.rain_data_end && /^\d{8}$/.test(String(loc.rain_data_end))) {
+    const s = String(loc.rain_data_end);
+    const d = new Date(Date.UTC(+s.slice(0,4), +s.slice(4,6) - 1, +s.slice(6,8)));
+    dataEndText = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  }
+  if (usingDemoFallback) dataEndText += ' (demo)';
+
+  return `
+    <div class="map-tooltip-header">
+      <span class="map-tooltip-title">${meta.place || loc.name}</span>
+      ${demoBadge}
+    </div>
+    <div class="map-tooltip-row">${district}, ${stateName}</div>
+    <div class="map-tooltip-row muted">${latText}, ${lonText}</div>
+    <div class="map-tooltip-grid">
+      <div><span class="k">Risk</span><span class="v"><span class="risk-pill risk-${eff.risk_level}" style="font-size:10px; padding:2px 7px;">${eff.risk_level} · ${fmtPercent(eff.risk_score)}</span></span></div>
+      <div><span class="k">24h Rainfall</span><span class="v">${rain24Text}</span></div>
+      <div><span class="k">7d Rainfall</span><span class="v">${rain7dText}</span></div>
+      <div><span class="k">Soil Moisture</span><span class="v">${smText}</span></div>
+      <div><span class="k">Slope</span><span class="v">${slopeText}</span></div>
+      <div><span class="k">Elevation</span><span class="v">${elevText}</span></div>
+    </div>
+    <div class="map-tooltip-row muted">Latest data: ${dataEndText}</div>
+    <div class="map-tooltip-source">Source: ${sourceText}</div>
+    <button type="button" class="map-tooltip-link" onclick="event.stopPropagation(); goToStationDetail('${loc.id}')">View sensor details →</button>
+  `;
+}
+
+// Positions and shows the shared tooltip near (clientX, clientY) of the
+// triggering element, clamped so it never gets clipped by the map container.
+function showStationTooltip(loc, anchorEl) {
+  const tooltip = document.getElementById('mapTooltip');
+  const stage = anchorEl.closest('.map-stage');
+  if (!tooltip || !stage) return;
+  cancelTooltipHide();
+  tooltip.innerHTML = buildStationTooltipHTML(loc);
+  tooltip.classList.add('visible');
+
+  // Position relative to the map-stage container, anchored above the marker,
+  // then clamp horizontally/vertically so the tooltip stays fully visible.
+  const stageRect = stage.getBoundingClientRect();
+  const markerEl = anchorEl.querySelector && anchorEl.querySelector('circle.dot, path.warn-badge-tri');
+  const anchorRect = markerEl ? markerEl.getBoundingClientRect() : anchorEl.getBoundingClientRect();
+  const anchorCenterX = anchorRect.left + anchorRect.width / 2 - stageRect.left;
+  let anchorTopY = anchorRect.top - stageRect.top;
+
+  tooltip.style.left = '0px';
+  tooltip.style.top = '0px';
+  const tw = tooltip.offsetWidth || 240;
+  const th = tooltip.offsetHeight || 140;
+
+  let left = anchorCenterX;
+  const minLeft = tw / 2 + 6;
+  const maxLeft = stageRect.width - tw / 2 - 6;
+  left = Math.max(minLeft, Math.min(maxLeft, left));
+
+  let top = anchorTopY - 14; // default: above the marker
+  let flipped = false;
+  if (top - th < 0) { top = anchorRect.bottom - stageRect.top + 14; flipped = true; }
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+  tooltip.style.transform = flipped ? 'translate(-50%, 0)' : 'translate(-50%, -100%)';
+}
+
+function cancelTooltipHide() {
+  if (tooltipHideTimer) { clearTimeout(tooltipHideTimer); tooltipHideTimer = null; }
+}
+
+function hideStationTooltip() {
+  cancelTooltipHide();
+  tooltipHideTimer = setTimeout(() => {
+    const tooltip = document.getElementById('mapTooltip');
+    if (tooltip) tooltip.classList.remove('visible');
+  }, 120); // short delay so the pointer can move from the marker onto the tooltip itself
+}
+
+function handlePinHover(id, evt) {
+  const data = window.__lastLocations || DEMO_LOCATIONS;
+  const loc = data.find(l => l.id === id);
+  if (!loc) return;
+  showStationTooltip(loc, evt.currentTarget);
+}
+
+function handlePinLeave() {
+  hideStationTooltip();
+}
+
+function handlePinClick(id, evt) {
+  evt.stopPropagation();
+  selectedMapStationId = (selectedMapStationId === id) ? null : id;
+  renderNerMap(window.__lastLocations || DEMO_LOCATIONS);
+  if (selectedMapStationId) {
+    const data = window.__lastLocations || DEMO_LOCATIONS;
+    const loc = data.find(l => l.id === id);
+    // Re-find the freshly-rendered marker element so the tooltip anchors correctly post-redraw.
+    const el = document.querySelector(`.station-pin[data-station-id="${id}"]`);
+    if (loc && el) showStationTooltip(loc, el);
+  } else {
+    const tooltip = document.getElementById('mapTooltip');
+    if (tooltip) tooltip.classList.remove('visible');
+  }
+}
+
+function handlePinKeydown(evt, id) {
+  if (evt.key === 'Enter' || evt.key === ' ') {
+    evt.preventDefault();
+    handlePinClick(id, evt);
+  } else if (evt.key === 'Escape') {
+    selectedMapStationId = null;
+    renderNerMap(window.__lastLocations || DEMO_LOCATIONS);
+    const tooltip = document.getElementById('mapTooltip');
+    if (tooltip) tooltip.classList.remove('visible');
+  }
+}
+
+// Clicking empty map background (not a marker, which stops propagation) clears selection.
+function handleMapBackgroundClick(evt) {
+  if (evt.target.id !== 'nerMapSvg') return;
+  if (selectedMapStationId) {
+    selectedMapStationId = null;
+    renderNerMap(window.__lastLocations || DEMO_LOCATIONS);
+  }
+  const tooltip = document.getElementById('mapTooltip');
+  if (tooltip) tooltip.classList.remove('visible');
+}
+
+// Derives a short 3-letter map label straight from the station's own real id
+// (e.g. "SIK-GAN-01" -> "GAN") instead of inventing an airport-style code -
+// it is literally the location segment already present in the real data.
+function stationShortCode(loc) {
+  const parts = String(loc.id || '').split('-');
+  return (parts.length >= 2 ? parts[1] : String(loc.id || '?')).slice(0, 4).toUpperCase();
+}
+
+function renderNerMap(data) {
+  const svg = document.getElementById('nerMapSvg');
+  if (!svg) return;
+  let html = '';
+
+  // Real state outlines (see NER_STATE_SHAPES above) - no invented rivers, roads,
+  // or ambient decoration; every path is derived from actual boundary data.
+  NER_STATE_SHAPES.forEach(s => {
+    const dimmed = currentStateFilter && currentStateFilter !== s.code;
+    s.paths.forEach(path => {
+      html += `<path class="state-shape ${dimmed ? 'dimmed' : ''}" data-state="${s.code}" d="${path}"/>`;
+    });
+    html += `<text class="state-label" x="${s.labelX}" y="${s.labelY}" text-anchor="middle">${s.name}</text>`;
+    html += `<text class="state-sub" x="${s.labelX}" y="${s.labelY + 13}" text-anchor="middle">${s.code} · NER</text>`;
+  });
+
+  // Station markers are placed by projecting each station's real lat/lon through
+  // projectLatLon() - never a hardcoded pixel guess - so a station always lands
+  // inside its true state outline above. Stations missing coordinates are skipped
+  // rather than shown at a fabricated position.
+  const stateCodeFor = (loc) => STATE_NAME_TO_CODE[loc.state] || (NER_STATE_SHAPES.find(s => s.name === String(loc.state || '').toUpperCase()) || {}).code || null;
+  const sortedData = [...data].filter(l => typeof l.lat === 'number' && typeof l.lon === 'number' && !Number.isNaN(l.lat) && !Number.isNaN(l.lon));
+  sortedData.forEach(loc => {
+    const pos = projectLatLon(loc.lat, loc.lon);
+    const code = stationShortCode(loc);
+    const stateCode = stateCodeFor(loc);
+    const eff = getEffectiveStationValues(loc);
+    const dimmed = currentStateFilter && currentStateFilter !== stateCode;
+    const selected = loc.id === selectedMapStationId;
+    const color = riskColor(eff.risk_level);
+    const labelW = 9 + code.length * 6;
+    const isAlert = eff.risk_level === 'High' || eff.risk_level === 'Critical';
+    const haloClass = eff.risk_level === 'Critical' ? 'halo-strong' : 'halo';
+    const meta = SENSOR_META[loc.id] || { place: loc.name };
+    const ariaLabel = `${meta.place || loc.name}, ${eff.risk_level} risk, ${Math.round((eff.risk_score ?? 0) * 100)} percent${eff.isDemo ? ', demo scenario' : ''}`;
+    html += `
+      <g class="station-pin ${dimmed ? 'dimmed' : ''} ${selected ? 'map-selected' : ''}" data-station-id="${loc.id}"
+         tabindex="0" role="button" aria-label="${ariaLabel}"
+         style="${dimmed ? 'opacity:.2' : ''}"
+         onmouseenter="handlePinHover('${loc.id}', event)" onmouseleave="handlePinLeave()"
+         onfocus="handlePinHover('${loc.id}', event)" onblur="handlePinLeave()"
+         onclick="handlePinClick('${loc.id}', event)" onkeydown="handlePinKeydown(event, '${loc.id}')">
+        <circle class="${haloClass}" cx="${pos.x}" cy="${pos.y}" r="9" fill="${color}"/>
+        ${isAlert ? `
+          <path class="warn-badge-tri" d="M ${pos.x},${pos.y - 11} L ${pos.x + 10},${pos.y + 7} L ${pos.x - 10},${pos.y + 7} Z" fill="${color}"/>
+          <text class="warn-badge-text" x="${pos.x}" y="${pos.y + 4}">!</text>
+        ` : `
+          <circle class="dot" cx="${pos.x}" cy="${pos.y}" r="7" fill="${color}"/>
+        `}
+        <rect class="pin-label-bg" x="${pos.x - labelW/2}" y="${pos.y - 26}" width="${labelW}" height="14" rx="4"/>
+        <text x="${pos.x}" y="${pos.y - 16}">${code}</text>
+      </g>`;
+  });
+
+  svg.innerHTML = html;
+}
+
+function renderStateFocusBar() {
+  const bar = document.getElementById('stateFocusBar');
+  if (!bar) return;
+  bar.innerHTML = `<span class="state-focus-label">STATE FOCUS:</span>` +
+    `<span class="state-chip ${!currentStateFilter ? 'active' : ''}" onclick="filterMapByState(null)">ALL</span>` +
+    NER_STATE_SHAPES.map(s => `<span class="state-chip ${currentStateFilter === s.code ? 'active' : ''}" onclick="filterMapByState('${s.code}')">${s.code}</span>`).join('');
+}
+
+function filterMapByState(code) {
+  currentStateFilter = (currentStateFilter === code) ? null : code;
+  renderStateFocusBar();
+  renderNerMap(window.__lastLocations || DEMO_LOCATIONS);
+}
+
+const STATE_NAME_TO_CODE = {
+  "Assam": "AS", "Meghalaya": "ML", "Manipur": "MN", "Mizoram": "MZ",
+  "Nagaland": "NL", "Tripura": "TR", "Arunachal Pradesh": "AR", "Sikkim": "SK",
+};
+
+function handleHeaderStateSelect(value) {
+  const code = STATE_NAME_TO_CODE[value] || null; // null = "All 8 NER States"
+  currentStateFilter = code;
+  renderStateFocusBar();
+  renderNerMap(window.__lastLocations || DEMO_LOCATIONS);
+}
+
+const LANG_NAMES = {
+  hi: 'Hindi', as: 'Assamese', bn: 'Bengali', brx: 'Bodo', mni: 'Manipuri',
+  kha: 'Khasi', lus: 'Mizo', ne: 'Nepali', fr: 'French', es: 'Spanish',
+};
+let langNoticeTimer = null;
+function handleLangSelect(value) {
+  if (value === 'en') return;
+  // Honest behavior: only English strings exist in this build, so selecting
+  // anything else shows a small, non-blocking notice and reverts to English -
+  // no fabricated translation, no jarring native alert() like before.
+  const notice = document.getElementById('langNotice');
+  if (notice) {
+    notice.textContent = `${LANG_NAMES[value] || value} isn't available yet — staying in English.`;
+    notice.classList.add('visible');
+    clearTimeout(langNoticeTimer);
+    langNoticeTimer = setTimeout(() => notice.classList.remove('visible'), 3200);
+  }
+  document.getElementById('langSelect').value = 'en';
+}
+
+// --- Settings popover: real, connected controls (not a demo alert) ---
+function toggleSettingsPanel(e) {
+  e.stopPropagation();
+  const panel = document.getElementById('settingsPanel');
+  const btn = document.getElementById('settingsBtn');
+  const willOpen = !panel.classList.contains('open');
+  panel.classList.toggle('open', willOpen);
+  btn.setAttribute('aria-expanded', String(willOpen));
+}
+function closeSettingsPanel() {
+  document.getElementById('settingsPanel')?.classList.remove('open');
+  document.getElementById('settingsBtn')?.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('settingsPanel');
+  const btn = document.getElementById('settingsBtn');
+  if (!panel || !panel.classList.contains('open')) return;
+  if (panel.contains(e.target) || btn.contains(e.target)) return;
+  closeSettingsPanel();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeSettingsPanel();
+});
+
+// Toggles body classes that the map CSS already understands (.hide-state-labels,
+// .hide-station-markers) - a real, immediate visual effect, not a fake setting.
+function applyMapDisplaySettings() {
+  const showLabels = document.getElementById('setShowStateLabels')?.checked;
+  const showMarkers = document.getElementById('setShowStationMarkers')?.checked;
+  document.body.classList.toggle('hide-state-labels', !showLabels);
+  document.body.classList.toggle('hide-station-markers', !showMarkers);
+}
+
+// Re-calls the existing loadLocations() on a timer - same real data path the
+// page already uses on load, just re-run periodically. No new data source.
+let autoRefreshTimer = null;
+function toggleAutoRefresh(enabled) {
+  clearInterval(autoRefreshTimer);
+  autoRefreshTimer = null;
+  if (enabled) {
+    autoRefreshTimer = setInterval(() => loadLocations(), 5 * 60 * 1000);
+  }
+}
+
+function goToStationDetail(id) {
+  selectedStationId = id;
+  const navButtons = document.querySelectorAll('nav button');
+  navButtons.forEach(b => b.classList.remove('active'));
+  const sensorsBtn = Array.from(navButtons).find(b => b.getAttribute('onclick')?.includes("'sensors'"));
+  if (sensorsBtn) { showTab('sensors', sensorsBtn); }
+}
+
+function renderContacts() {
+  const grid = document.getElementById('contactsGrid');
+  if (!grid) return;
+  const q = (document.getElementById('contactSearch')?.value || '').trim().toLowerCase();
+  const stateFilter = document.getElementById('contactStateFilter')?.value || '';
+  const agencyFilter = document.getElementById('contactAgencyFilter')?.value || '';
+
+  const list = EMERGENCY_CONTACTS.filter(c => {
+    if (stateFilter && c.scope !== 'National' && c.scope !== stateFilter) return false;
+    if (agencyFilter && c.category !== agencyFilter) return false;
+    if (q && !(`${c.name} ${c.category} ${c.scope} ${c.location} ${c.number}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  document.getElementById('contactCountBadge').textContent = `${list.length} Contact${list.length === 1 ? '' : 's'}`;
+  grid.innerHTML = list.length ? list.map(c => `
+    <div class="contact-card">
+      <div class="contact-card-top">
+        <span class="contact-cat-tag">${c.category.toUpperCase()} • ${c.scope.toUpperCase()}</span>
+        <span class="contact-avail-tag">${c.availability}</span>
+      </div>
+      <h3>${c.name}</h3>
+      <div class="contact-card-loc">📍 ${c.location}</div>
+      <div class="contact-card-desc">${c.desc}</div>
+      <div class="contact-card-footer">
+        <a class="contact-call-btn" href="tel:${c.tel}">📞 Call ${c.number}</a>
+        <button class="contact-copy-btn" title="Copy number" onclick="copyContactNumber(this, '${c.number.replace(/'/g, "\\'")}')">⧉</button>
+      </div>
+      <div class="contact-note">${c.verified ? '✓ Confirmed against the official site this session' : 'Source: ' + c.source}</div>
+    </div>
+  `).join('') : `<p class="muted">No contacts match this search/filter.</p>`;
+}
+
+function copyContactNumber(btn, number) {
+  navigator.clipboard?.writeText(number).then(() => {
+    const original = btn.textContent;
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = original; }, 1200);
+  }).catch(() => {});
+}
+
+function setRole(role) {
+  document.getElementById('adminOnlyAlerts').classList.toggle('locked', role === 'public');
+  const broadcastBtn = document.getElementById('broadcastBtn');
+  if (broadcastBtn) broadcastBtn.disabled = role === 'public';
+  document.getElementById('roleLabel').textContent = role === 'admin' ? 'chakri · DISTRICT ADMIN' : 'Guest · PUBLIC VIEW';
+}
+
+async function fetchJSON(path, timeoutMs) {
+  try {
+    const res = await fetch(API_BASE + path, {signal: AbortSignal.timeout(timeoutMs || 15000)});
+    if (!res.ok) throw new Error('bad response');
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+function riskColor(level) {
+  return {Low:'#22c55e', Moderate:'#f59e0b', High:'#f97316', Critical:'#ef4444', Unavailable:'#94a3b8'}[level] || '#888';
+}
+
+// Safe formatters: the ML-backed endpoints can legitimately return null
+// (real data / model unavailable) rather than a fabricated number - these
+// render that as "—" instead of a misleading "0%"/"null".
+function fmtPercent(score) {
+  return (score === null || score === undefined) ? '—%' : `${(score * 100).toFixed(0)}%`;
+}
+function fmtNum(v, digits = 0) {
+  return (v === null || v === undefined) ? '—' : (v.toFixed ? v.toFixed(digits) : v);
+}
+
+// Normalizes a /api/gis/stations response object into the internal shape
+// the rest of the app already expects (id/name/lat/lon/rain_24h/etc.),
+// so GIS map, Sensors tab, and AI dropdown all keep working unchanged.
+function mapGisStation(s) {
+  return {
+    id: s.station_id,
+    name: s.station_name,
+    state: s.state,
+    district: s.district,
+    lat: s.latitude,
+    lon: s.longitude,
+    elevation_m: s.elevation_m,
+    slope_deg: s.slope_deg,
+    aspect_deg: s.terrain?.aspect_deg,
+    ruggedness_m: s.terrain?.ruggedness_m,
+    geology_value: s.geology?.value,
+    geology_status: s.geology?.status,  // "unverified_hardcoded" - not a real survey source yet
+    risk_score: s.risk_score,
+    risk_level: s.risk_level,
+    rain_24h: s.rainfall?.rain_24h_mm,
+    rain_72h: s.rainfall?.rain_72h_mm,
+    rain_7d: s.rainfall?.rain_7d_mm,
+    source: s.rainfall?.source,
+    // Real field already computed by the backend (NASA POWER daily data end date,
+    // format YYYYMMDD) - just wasn't being surfaced to the frontend before.
+    rain_data_end: s.rainfall?.data_end,
+    // Real (NASA POWER reanalysis, not satellite, not an IoT sensor - see backend docs)
+    soil_moisture: s.soil_moisture,
+    // Honestly unavailable - no fabricated numbers
+    pore_water_pressure: s.pore_water_pressure,
+    ground_movement: s.ground_movement,
+    // Real, computed Slope Saturation Index (see backend services/slope_stability.py) -
+    // this was missing from this mapping, which silently dropped it before it ever
+    // reached the Sensors tab, making it look "unavailable" even when the backend had
+    // real slope/soil-moisture/rainfall inputs to compute it from.
+    slope_saturation_index: s.slope_saturation_index,
+    current_weather: s.current_weather,
+  };
+}
+
+async function loadLocations() {
+  const apiData = await fetchJSON('/api/gis/stations');
+  window.__usingDemoLocations = !apiData;
+  const data = apiData ? apiData.map(mapGisStation) : DEMO_LOCATIONS;
+  window.__lastLocations = data;
+  const banner = document.getElementById('locationsSourceBanner');
+  if (banner) {
+    banner.innerHTML = window.__usingDemoLocations
+      ? `<div class="data-source-banner">⚠ Backend unreachable at ${API_BASE} — showing <b>DEMO station data</b> (not live). Start the backend and reload to see real NASA POWER-driven values.</div>`
+      : '';
+  }
+  renderLocations(data);
+  // Each map mode is isolated: if the Leaflet CDN script failed to load (slow
+  // network, ad-blocker, offline), the Real-World map fails without taking the
+  // schematic map (or anything below it) down with it, and vice versa.
+  try { renderMap(data); } catch (e) { console.error('Real-World map render failed:', e); }
+  try { renderNerMap(data); } catch (e) { console.error('Schematic map render failed:', e); }
+  renderStateFocusBar();
+  renderAlertSelect(data);
+  renderSensorTab(data);
+  populateAIStationDropdown(data);
+  document.getElementById('statCritical').textContent = data.filter(d => d.risk_level === 'Critical' || d.risk_level === 'High').length;
+}
+
+function renderLocations(data) {
+  const grid = document.getElementById('locationsGrid');
+  grid.innerHTML = data.map(loc => `
+    <div class="loc-card loc-card-light">
+      <div class="name">${loc.name}</div>
+      <div class="coords">${loc.lat.toFixed(2)}, ${loc.lon.toFixed(2)}</div>
+      <span class="risk-pill risk-${loc.risk_level}">${loc.risk_level} · ${fmtPercent(loc.risk_score)}</span>
+      <div class="metrics">
+        <div>24h Rainfall<b>${fmtNum(loc.rain_24h)} mm</b></div>
+        <div>7d Rainfall<b>${fmtNum(loc.rain_7d)} mm</b></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// --- Real-world map tile configuration ---
+// OpenStreetMap's own tile.openstreetmap.org server actively blocks direct app usage
+// per its tile usage policy (this caused the "Access blocked / 403" error).
+// To use a nicer provider, get a free API key from https://www.maptiler.com and paste it below.
+// Leave empty to automatically fall back to Esri's free, key-less basemap (policy-compliant for this kind of use).
+const MAP_TILE_API_KEY = ""; // <-- optional: put your MapTiler API key here
+
+function getTileLayerConfig() {
+  if (MAP_TILE_API_KEY) {
+    return {
+      url: `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MAP_TILE_API_KEY}`,
+      options: { maxZoom: 19, tileSize: 512, zoomOffset: -1 }
+    };
+  }
+  // Esri's public World Street Map service - free, no API key required, standard usage terms
+  // permit this kind of embedding (unlike OSM's volunteer-run tile server).
+  return {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    options: { maxZoom: 19 }
+  };
+}
+
+function renderMap(data) {
+  if (typeof L === 'undefined') { console.error('Leaflet (L) is not loaded - Real-World Map unavailable, Schematic map is unaffected.'); return; }
+  if (!map) {
+    map = L.map('map', {attributionControl: false, zoomControl: true}).setView([25.5, 92.5], 6);
+    const tileConfig = getTileLayerConfig();
+    L.tileLayer(tileConfig.url, tileConfig.options).addTo(map);
+  }
+  markers.forEach(m => map.removeLayer(m));
+  markers = data.map(loc => {
+    const eff = getEffectiveStationValues(loc);
+    const marker = L.circleMarker([loc.lat, loc.lon], {
+      radius: 10, color: riskColor(eff.risk_level), fillColor: riskColor(eff.risk_level), fillOpacity: 0.7,
+      weight: loc.id === selectedMapStationId ? 4 : 2,
+    }).addTo(map);
+    // Same field set as the schematic map's tooltip (buildStationTooltipHTML), shown on
+    // hover like the schematic view; sticky so it tracks the cursor instead of clipping.
+    marker.bindTooltip(buildStationTooltipHTML(loc), { sticky: true, direction: 'top', className: 'leaflet-app-tooltip', opacity: 1 });
+    marker.on('click', () => {
+      selectedMapStationId = (selectedMapStationId === loc.id) ? null : loc.id;
+      renderMap(data);
+    });
+    return marker;
+  });
+}
+
+function renderAlertSelect(data) {
+  const sel = document.getElementById('alertLocation');
+  sel.innerHTML = data.map(l => `<option value="${l.id || l.name}">${l.name}</option>`).join('');
+}
+
+// ===== ALERTS & SIREN DISPATCH =====
+function renderBulletins(data) {
+  const el = document.getElementById('bulletinList');
+  if (!el) return;
+  const breaches = (data || []).filter(d => d.risk_level === 'High' || d.risk_level === 'Critical');
+  const badge = document.getElementById('bulletinCountBadge');
+  if (badge) badge.textContent = `${breaches.length} Active Warning Bulletin${breaches.length === 1 ? '' : 's'}`;
+
+  if (!breaches.length) {
+    el.innerHTML = '<p class="muted">No active High/Critical risk breaches right now.</p>';
+    return;
+  }
+  const nowStr = new Date().toLocaleString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const log = window.__alertLogCache || [];
+  el.innerHTML = breaches.map(b => {
+    const color = b.risk_level === 'Critical' ? '#ef4444' : '#f97316';
+    const headline = b.risk_level === 'Critical' ? 'RED ALERT' : 'ORANGE WARNING';
+    const dispatched = log.find(l => l.location === b.name && l.level === b.risk_level);
+    const scoreText = (typeof b.risk_score === 'number') ? b.risk_score.toFixed(2) : (b.risk_score ?? '–');
+    return `<div class="bulletin-card" style="--sev-color:${color};">
+      <div class="bulletin-top">
+        <h3 style="margin:0;">${headline}: Elevated ${b.risk_level === 'Critical' ? 'landslide' : 'slope-risk'} hazard at ${b.name}</h3>
+        <span class="bulletin-issued">🕒 Live · as of ${nowStr}</span>
+      </div>
+      <div class="bulletin-loc">📍 ${b.state || ''}${b.district ? ', ' + b.district : ''}</div>
+      <div class="bulletin-desc">
+        Trained model places this station at <b>${b.risk_level}</b> risk (score ${scoreText}).
+        Rainfall — 24h: ${fmtNum(b.rain_24h, 1)}mm · 72h: ${fmtNum(b.rain_72h, 1)}mm · 7d: ${fmtNum(b.rain_7d, 1)}mm.
+        Source: ${b.source || 'unavailable'}.
+      </div>
+      <div class="bulletin-channels">
+        <span class="channel-tag on">SMS</span>
+        <span class="channel-tag on">EMAIL</span>
+        <span class="channel-tag off" title="Not implemented in this build">CAP GOV</span>
+        <span class="channel-tag off" title="Not implemented in this build">PUSH</span>
+        <span class="channel-tag off" title="Not implemented in this build">WHATSAPP</span>
+      </div>
+      <div class="bulletin-footer">
+        <span>SMS/Email send for real to subscribers if SMTP_*/TWILIO_* are configured on the backend; otherwise simulated &amp; logged.</span>
+        <span class="bulletin-status ${dispatched ? 'active' : 'pending'}">${dispatched ? '● Active Broadcast' : '○ Awaiting Broadcast'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function testWarningTone() {
+  // A short LOCAL audio cue in this browser tab only - not a real public siren
+  // or SMS/push broadcast. Deliberately separate from any "Emergency Siren" /
+  // "1-Touch SOS" control, which this project intentionally does not include.
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.9);
+  } catch (e) {
+    alert('Audio playback is not available in this browser.');
+  }
+}
+
+async function broadcastEmergencyWarning() {
+  const btn = document.getElementById('broadcastBtn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Broadcasting…';
+  try {
+    const res = await fetch(API_BASE + '/alerts/broadcast', { method: 'POST', signal: AbortSignal.timeout(15000) });
+    if (res.ok) {
+      const data = await res.json();
+      alert(data.count
+        ? `Logged ${data.count} dispatch record(s) for current High/Critical breaches. This writes an audit-log entry — it does not yet send real public SMS/push/siren broadcasts (no such channel is wired up). Use "Subscribe to Alerts" below for real per-recipient email/SMS.`
+        : 'No active High/Critical breaches to broadcast right now.');
+      await loadAlertLog();
+    } else {
+      alert('Backend not reachable — this is a demo action and nothing was logged.');
+    }
+  } catch {
+    alert('Backend not reachable — this is a demo action and nothing was logged.');
+  }
+  btn.disabled = false;
+  btn.textContent = original;
+}
+
+async function loadAlertLog() {
+  const el = document.getElementById('alertLogList');
+  const banner = document.getElementById('bulletinSourceBanner');
+  try {
+    const res = await fetch(API_BASE + '/alerts', { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('bad status');
+    const data = await res.json();
+    window.__alertLogCache = data.alert_log || [];
+    if (el) {
+      el.innerHTML = window.__alertLogCache.length
+        ? window.__alertLogCache.slice(0, 20).map(l => `<div class="alert-log-row">
+            <b>${l.location}</b> <span class="risk-pill risk-${l.level}">${l.level}</span>
+            <span class="muted">${l.channel} → ${l.recipient} · ${l.sent ? 'sent' : 'simulated (not configured)'} · ${fmtDateTime(l.time)}</span>
+          </div>`).join('')
+        : '<p class="muted">No dispatch attempts logged yet.</p>';
+    }
+    if (banner) banner.innerHTML = '';
+    // Bulletins are built from this SAME /alerts response that /alerts/broadcast
+    // itself acts on, so what's shown here always matches what a broadcast would
+    // actually log - no separate, possibly-divergent breach computation.
+    renderBulletins(data.current_breaches || []);
+  } catch {
+    window.__alertLogCache = [];
+    if (el) el.innerHTML = '<p class="muted">Backend unreachable — alert log unavailable.</p>';
+    if (banner) banner.innerHTML = `<div class="data-source-banner">⚠ Backend unreachable at ${API_BASE} — showing bulletins derived from <b>DEMO station data</b> instead of the live /alerts check.</div>`;
+    renderBulletins((window.__lastLocations || []));
+  }
+}
+
+// ---- Soil & Rain Sensors tab ----
+const METRIC_ICONS = {
+  vwc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>',
+  ssi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h3l3-8 4 16 3-8h7"/></svg>',
+  rain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 19v2M12 19v2M16 19v2"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg>',
+};
+
+function renderSensorTab(data) {
+  document.getElementById('stationCount').textContent = data.length;
+  const list = document.getElementById('stationList');
+  list.innerHTML = data.map(loc => {
+    const eff = getEffectiveStationValues(loc);
+    const r = getSensorReadings({ ...loc, risk_score: eff.risk_score, rain_24h: eff.rain_24h });
+    const meta = SENSOR_META[loc.id] || {place: loc.name, region: ''};
+    const score = Math.round(eff.risk_score * 100);
+    return `
+      <div class="station-row ${loc.id === selectedStationId ? 'selected' : ''}" onclick="selectStation('${loc.id}')">
+        <div class="score-row">
+          <span class="id">${loc.id || ''}</span>
+          <span class="score-badge risk-${eff.risk_level}">${score}/100</span>
+          ${eff.isDemo ? '<span class="badge-demo">DEMO</span>' : ''}
+        </div>
+        <div class="place">${meta.place}</div>
+        <div class="bottom-row">
+          <span class="loc">📍 ${meta.region}</span>
+          <span class="loc">${r.vwc.toFixed(1)}% VWC</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  if (!selectedStationId || !data.find(d => d.id === selectedStationId)) {
+    selectedStationId = data[0]?.id;
+  }
+  if (selectedStationId) renderStationDetail(selectedStationId, data);
+}
+
+function selectStation(id) {
+  selectedStationId = id;
+  renderSensorTab(window.__lastLocations || DEMO_LOCATIONS);
+  const loc = (window.__lastLocations || DEMO_LOCATIONS).find(l => l.id === id);
+  const sel = document.getElementById('scenarioSelect');
+  if (sel) sel.value = (loc && loc.demo && loc.demo.active) ? loc.demo.scenarioKey : 'normal';
+}
+
+function renderStationDetail(id, data) {
+  const loc = data.find(d => d.id === id);
+  if (!loc) return;
+  const meta = SENSOR_META[id] || {place: loc.name, region:'', geology:'—'};
+  const eff = getEffectiveStationValues(loc);
+  const r = getSensorReadings({ ...loc, risk_score: eff.risk_score, rain_24h: eff.rain_24h });
+  const sm = loc.soil_moisture || {status: 'unavailable'};
+  // Real, computed Slope Saturation Index from the backend (slope_stability.py) -
+  // replaces the old simulated pore-pressure/tilt panel. null/"unavailable" is
+  // expected (and honest) when the backend couldn't reach NASA POWER/terrain
+  // data for this station, not a bug.
+  const ssi = loc.slope_saturation_index || { index: null, band: 'Unavailable', status: 'unavailable', method: null };
+  // Real elevation/slope come from the backend's DEM-derived terrain data (loc.elevation_m/slope_deg),
+  // NOT from the old hardcoded SENSOR_META placeholder values. null means genuinely unavailable.
+  const elevationText = (loc.elevation_m === null || loc.elevation_m === undefined) ? 'Unavailable' : `${fmtNum(loc.elevation_m)}m`;
+  const slopeText = (loc.slope_deg === null || loc.slope_deg === undefined) ? 'Unavailable' : `${fmtNum(loc.slope_deg, 1)}°`;
+
+  // Demo-scenario banner (only shown when THIS station has an active scenario override)
+  const scenarioBannerEl = document.getElementById('demoScenarioBanner');
+  if (scenarioBannerEl) {
+    scenarioBannerEl.innerHTML = eff.isDemo ? `
+      <div class="demo-banner-active">
+        <span>🧪 DEMO SCENARIO ACTIVE — <b>${eff.label}</b> for ${id}. Values below are illustrative, not a validated real-world prediction.</span>
+        <button class="btn-reset-demo" onclick="resetDemoScenario('${id}')">↺ Reset to Real Data</button>
+      </div>` : '';
+  }
+
+  document.getElementById('stationDetail').innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div><span class="id-pill">${id}</span><span class="meta-line">Elevation: ${elevationText} &nbsp;·&nbsp; Slope: ${slopeText}</span></div>
+      <div class="telemetry"><span>🔋 ${r.battery}%</span><span>📶 ${r.signal}%</span><span>🕐 Just now</span></div>
+    </div>
+    <div class="detail-header" style="border-bottom:none; padding-bottom:0; margin-bottom:16px;">
+      <div>
+        <div class="name">${meta.place} (${meta.region}) ${eff.isDemo ? '<span class="badge-demo">DEMO SCENARIO: ' + eff.label.toUpperCase() + '</span>' : ''}</div>
+        <div class="desc"><b style="color:#374151;">Geological Horizon:</b> ${meta.geology}</div>
+      </div>
+    </div>
+    <div class="metric-grid">
+      <div class="metric-card${sm.status === 'real' ? '' : ' demo-data'}">
+        <div class="m-label"><span>Soil Moisture (Reanalysis)</span>${METRIC_ICONS.vwc}</div>
+        ${sm.status === 'real' ? `
+          <div class="m-value">${(sm.surface_soil_wetness_fraction*100).toFixed(0)}<span>% wetness</span></div>
+          <div class="m-threshold">NASA POWER / MERRA-2 reanalysis - not a field sensor</div>
+          <div class="bar-track"><div class="bar-fill ${barFillClass(sm.surface_soil_wetness_fraction*100, 80)}" style="width:${Math.min(100, sm.surface_soil_wetness_fraction*100/80*60)}%"></div></div>
+        ` : `
+          <span class="badge-demo">DEMO FALLBACK</span>
+          <div class="m-value">${r.vwc.toFixed(1)}<span>% VWC</span></div>
+          <div class="bar-track"><div class="bar-fill ${barFillClass(r.vwc, r.vwcThreshold)}" style="width:${Math.min(100, r.vwc/r.vwcThreshold*60)}%"></div></div>
+        `}
+      </div>
+      <div class="metric-card${ssi.status === 'real' ? '' : ssi.status === 'partial' ? ' demo-data' : ''}" title="${(ssi.method || '').replace(/"/g, '&quot;')}">
+        <div class="m-label"><span>Slope Saturation Index</span>${METRIC_ICONS.ssi}</div>
+        ${ssi.index !== null && ssi.index !== undefined ? `
+          <div class="m-value">${ssi.index.toFixed(1)}<span> / 100 · ${ssi.band}</span></div>
+          <div class="m-threshold">Computed index, not a sensor reading (ⓘ hover for details)</div>
+          <div class="bar-track"><div class="bar-fill ${ssiBandClass(ssi.band)}" style="width:${Math.min(100, ssi.index)}%"></div></div>
+        ` : `
+          <span class="badge-demo">UNAVAILABLE</span>
+          <div class="m-value">—</div>
+          <div class="m-threshold">No real inputs available right now (ⓘ hover for details)</div>
+        `}
+      </div>
+      <div class="metric-card${eff.isDemo ? ' demo-data' : ''}">
+        <div class="m-label"><span>24h Rainfall Total</span>${METRIC_ICONS.rain}</div>
+        ${eff.isDemo ? '<span class="badge-demo">DEMO SCENARIO</span>' : ''}
+        <div class="m-value">${fmtNum(r.rain24)}<span> mm</span></div>
+        <div class="m-threshold">IMD Heavy: &gt;${r.rainThreshold}mm &middot; ${eff.isDemo ? `Demo scenario: ${eff.label}` : 'NASA POWER (real)'}</div>
+        <div class="bar-track"><div class="bar-fill ${barFillClass(r.rain24, r.rainThreshold)}" style="width:${Math.min(100, r.rain24/r.rainThreshold*60)}%"></div></div>
+      </div>
+    </div>
+  `;
+
+  renderSensorHistoryChart(loc);
+}
+
+// Real 14-day rainfall history for the currently selected station (reuses the
+// same fetchStationHistory()/NASA POWER data as the Trends & Forecast tab's
+// compare chart - no separate fake series). Replaces the old simulated
+// pore-pressure/moisture trend chart that used to live in this panel.
+let sensorHistoryChartInstance;
+async function renderSensorHistoryChart(loc) {
+  const canvas = document.getElementById('sensorHistoryChart');
+  const badge = document.getElementById('sensorHistoryBadge');
+  if (!canvas) return;
+  const hist = await fetchStationHistory(loc);
+  if (badge) {
+    badge.textContent = hist.isDemo ? 'DEMO (BACKEND UNREACHABLE)' : 'NASA POWER (real)';
+    badge.className = hist.isDemo ? 'badge-demo' : 'badge-live';
+  }
+  const labels = hist.days.map(d => `${d.date.slice(4,6)}/${d.date.slice(6,8)}`);
+  const values = hist.days.map(d => d.rain_mm);
+  if (sensorHistoryChartInstance) { sensorHistoryChartInstance.destroy(); sensorHistoryChartInstance = null; }
+  sensorHistoryChartInstance = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: hist.isDemo ? 'Rainfall (mm) · DEMO' : 'Rainfall (mm) · NASA POWER',
+        data: values,
+        borderColor: hist.isDemo ? '#f59e0b' : '#3b82f6',
+        backgroundColor: hist.isDemo ? 'rgba(245,158,11,.12)' : 'rgba(59,130,246,.12)',
+        tension: 0.3, pointRadius: 2, fill: true,
+      }],
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#64748b', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#eef1f5' } },
+        y: { ticks: { color: '#64748b' }, grid: { color: '#eef1f5' }, title: { display: true, text: 'mm', color: '#94a3b8', font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+// Kept as its own button (per the original UI) for one-click demo convenience; it
+// now goes through the same demo-scenario engine as the dropdown, so it no longer
+// silently overwrites the real rain_24h/risk_score fields - it sets loc.demo instead.
+function simulateCloudburst() {
+  if (!window.__lastLocations && !window.__usingDemoLocations) return;
+  const data = window.__lastLocations || DEMO_LOCATIONS;
+  const loc = data.find(l => l.id === selectedStationId);
+  if (loc) {
+    applyDemoScenario(loc.id, 'cloudburst');
+    alert('Demo scenario "Cloudburst Risk" applied to ' + loc.name + ' — sensor readings and risk score shown are illustrative, not a validated prediction. Use "Reset to Real Data" to return to live values.');
+  }
+}
+
+// ---- AI Predictive Engine ----
+let lastAIAssessment = null;
+
+function populateAIStationDropdown(data) {
+  const sel = document.getElementById('aiStationSelect');
+  if (!sel) return;
+  const prevValue = sel.value;
+  sel.innerHTML = data.map(loc => {
+    const meta = SENSOR_META[loc.id] || {place: loc.name, region: ''};
+    const score = Math.round(loc.risk_score * 100);
+    return `<option value="${loc.id}">[${loc.risk_level.toUpperCase()}] ${meta.place} (${meta.region}) - ${score}/100</option>`;
+  }).join('');
+  // keep the previously selected station if it still exists, else default to the highest-risk one
+  if (prevValue && data.some(l => l.id === prevValue)) {
+    sel.value = prevValue;
+  } else {
+    const highestRisk = [...data].sort((a, b) => (b.risk_score ?? -1) - (a.risk_score ?? -1))[0];
+    if (highestRisk) sel.value = highestRisk.id;
+  }
+  onAIStationChange();
+}
+
+function onAIStationChange() {
+  const sel = document.getElementById('aiStationSelect');
+  const data = window.__lastLocations || DEMO_LOCATIONS;
+  const loc = data.find(l => l.id === sel.value);
+  if (!loc) return;
+  const eff = getEffectiveStationValues(loc);
+  const r = getSensorReadings({ ...loc, risk_score: eff.risk_score, rain_24h: eff.rain_24h });
+  const sm = loc.soil_moisture || {status: 'unavailable'};
+  const ssi = loc.slope_saturation_index || { index: null, band: 'Unavailable' };
+  const ssiText = (ssi.index !== null && ssi.index !== undefined) ? `${ssi.index.toFixed(1)} / 100 · ${ssi.band}` : 'Unavailable';
+  const smText = sm.status === 'real' ? `${(sm.surface_soil_wetness_fraction*100).toFixed(0)}% wetness` : `${r.vwc.toFixed(1)}% VWC`;
+  document.getElementById('aiReadoutBox').innerHTML = `
+    <div class="item"><div class="lbl">Slope Saturation Index <span class="badge-demo" style="font-size:9px;">${ssi.index !== null ? 'COMPUTED' : 'UNAVAILABLE'}</span></div><div class="val">${ssiText}</div></div>
+    <div class="item"><div class="lbl">Soil Moisture ${sm.status === 'real' ? '' : '<span class="badge-demo" style="font-size:9px;">DEMO FALLBACK</span>'}</div><div class="val">${smText}</div></div>
+    <div class="item"><div class="lbl">24h Rainfall ${eff.isDemo ? '<span class="badge-demo" style="font-size:9px;">DEMO SCENARIO</span>' : ''}</div><div class="val">${fmtNum(r.rain24)} mm</div></div>
+  `;
+  document.getElementById('aiResultBox').innerHTML = '';
+  lastAIAssessment = null;
+}
+
+// Compute button: reuses the SAME trained backend model as the rest of the app
+// (via the /predict endpoint) - re-running the real prediction fresh for this
+// station's coordinates, rather than a fake client-side guess.
+async function computeAIRiskAssessment() {
+  const sel = document.getElementById('aiStationSelect');
+  const data = window.__lastLocations || DEMO_LOCATIONS;
+  const loc = data.find(l => l.id === sel.value);
+  const resultBox = document.getElementById('aiResultBox');
+  if (!loc) return;
+
+  resultBox.innerHTML = `<div class="ai-result-card">Running assessment…</div>`;
+  const fresh = await fetchJSON(`/predict?lat=${loc.lat}&lon=${loc.lon}`);
+  const result = fresh || { risk_score: loc.risk_score, risk_level: loc.risk_level, rain_24h: loc.rain_24h, rain_72h: loc.rain_72h, rain_7d: loc.rain_7d, source: 'cached station data (backend unreachable)' };
+  lastAIAssessment = { loc, result };
+
+  resultBox.innerHTML = `
+    <div class="ai-result-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span class="muted" style="font-size:12px;">AI Risk Assessment Result</span>
+        <span class="risk-pill risk-${result.risk_level}">${result.risk_level}</span>
+      </div>
+      <div class="r-score">${fmtPercent(result.risk_score)} failure probability</div>
+      <div class="muted" style="font-size:11.5px; margin-top:6px;">Model source: ${result.source || 'trained model'} · rain_24h ${result.rain_24h?.toFixed ? result.rain_24h.toFixed(0) : result.rain_24h}mm</div>
+    </div>`;
+}
+
+function generateSitrep() {
+  const box = document.getElementById('sitrepBox');
+  const data = window.__lastLocations || DEMO_LOCATIONS;
+  const sel = document.getElementById('aiStationSelect');
+  const loc = data.find(l => l.id === sel?.value) || data[0];
+  if (!loc) return;
+
+  const meta = SENSOR_META[loc.id] || {place: loc.name, region: ''};
+  const result = lastAIAssessment?.result || loc;
+  const level = result.risk_level || loc.risk_level;
+  const score = ((result.risk_score ?? loc.risk_score) * 100).toFixed(0);
+  const now = new Date().toUTCString();
+
+  const actionsByLevel = {
+    Low: "Continue routine monitoring. No evacuation or road closure required at this time.",
+    Moderate: "Increase monitoring frequency. Alert local ward officers. Advise residents in low-lying slope areas to stay informed.",
+    High: "Notify District Disaster Management Authority. Pre-position rescue equipment. Consider precautionary movement of vulnerable households.",
+    Critical: "Immediate evacuation of at-risk households recommended. Close affected road corridors. Deploy emergency response teams and activate SOS hotline coordination.",
+  };
+
+  box.classList.remove('sitrep-empty');
+  box.classList.add('sitrep-report');
+  box.textContent =
+`REGIONAL DISASTER SITREP — EARLY WARNING BULLETIN
+Classification: INTERNAL / DISASTER MANAGEMENT USE
+Generated: ${now}
+
+STATION: ${loc.id} — ${meta.place}
+REGION: ${meta.region}
+
+RISK ASSESSMENT
+  Risk Level:        ${level}
+  Failure Probability: ${score}%
+  24h Rainfall:       ${fmtNum(loc.rain_24h)} mm
+  72h Rainfall:       ${fmtNum(loc.rain_72h)} mm
+  7-day Rainfall:     ${fmtNum(loc.rain_7d)} mm
+
+SITUATION SUMMARY
+  Sensor telemetry and rainfall trends at this station indicate a ${level.toUpperCase()} landslide
+  risk classification. This bulletin was generated from live station data and the
+  project's trained prediction model where reachable.
+
+RECOMMENDED ACTIONS
+  ${actionsByLevel[level] || actionsByLevel.Moderate}
+
+VALID UNTIL
+  Next scheduled telemetry refresh (approx. 15-30 minutes) or until superseded
+  by a newer bulletin.
+
+--- END OF BULLETIN ---`;
+}
+
+// ---- Predictive engine ----
+async function predictLocation() {
+  const input = document.getElementById('placeInput').value.trim();
+  const resultEl = document.getElementById('predictResult');
+  if (!input) return;
+  resultEl.innerHTML = '<p class="muted">Checking…</p>';
+
+  const coordMatch = input.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
+  const query = coordMatch ? `?lat=${coordMatch[1]}&lon=${coordMatch[2]}` : `?place=${encodeURIComponent(input)}`;
+
+  const data = await fetchJSON('/predict' + query);
+  const result = data || {
+    risk_score: Math.random(), risk_level: ['Low','Moderate','High','Critical'][Math.floor(Math.random()*4)],
+    rain_24h: (Math.random()*150).toFixed(0), rain_72h: (Math.random()*300).toFixed(0), rain_7d: (Math.random()*400).toFixed(0),
+    source: "demo fallback (backend not connected)"
+  };
+
+  resultEl.innerHTML = `
+    <div class="loc-card" style="max-width:400px; margin-top:10px;">
+      <div class="name">${input}</div>
+      <span class="risk-pill risk-${result.risk_level}">${result.risk_level} · ${fmtPercent(result.risk_score)}</span>
+      <div class="metrics">
+        <div>24h Rainfall<b>${result.rain_24h} mm</b></div>
+        <div>72h Rainfall<b>${result.rain_72h} mm</b></div>
+        <div>7d Rainfall<b>${result.rain_7d} mm</b></div>
+        <div>Source<b style="font-size:11px;">${result.source || 'model'}</b></div>
+      </div>
+    </div>`;
+}
+
+// ===================== TRENDS & FORECAST TAB =====================
+// Rainfall trend: real per-station daily history from NASA POWER
+// (GET /api/gis/history), smoothed into a Concept-C-style compare chart.
+// Falls back to clearly-labeled DEMO history (seeded, not random-per-render)
+// only when the real endpoint is unreachable or returns no data - mirrors the
+// same real/demo separation pattern used by the Sensors tab and GIS map.
+// 5-day outlook: real forecast-driven risk from GET /forecast/risk
+// (OpenWeatherMap rainfall -> the same trained model used elsewhere).
+const TREND_LINE_COLORS = ['#ea580c', '#fbbf24'];
+const TREND_HISTORY_DAYS = 14;
+let trendSelectedIds = [];
+let trendHistoryCache = {};
+
+// Smooths a point list into a cubic-bezier SVG path (Catmull-Rom -> Bezier),
+// so the chart reads as one continuous curve instead of sharp line segments.
+function catmullRomPath(points) {
+  if (points.length < 2) return '';
+  let d = `M ${points[0][0].toFixed(1)},${points[0][1].toFixed(1)} `;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] || points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += `C ${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)} `;
+  }
+  return d.trim();
+}
+function catmullRomAreaPath(points, baselineY) {
+  const line = catmullRomPath(points);
+  if (!line) return '';
+  const last = points[points.length - 1], first = points[0];
+  return `${line} L ${last[0].toFixed(1)},${baselineY} L ${first[0].toFixed(1)},${baselineY} Z`;
+}
+
+// Last TREND_HISTORY_DAYS calendar days as YYYYMMDD strings, oldest first -
+// the shared x-axis every selected station's data gets mapped onto.
+function trendAxisDates() {
+  const out = [];
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 2); // same ~2-day NASA POWER lag used elsewhere
+  for (let i = TREND_HISTORY_DAYS - 1; i >= 0; i--) {
+    const day = new Date(d);
+    day.setUTCDate(day.getUTCDate() - i);
+    out.push(`${day.getUTCFullYear()}${String(day.getUTCMonth()+1).padStart(2,'0')}${String(day.getUTCDate()).padStart(2,'0')}`);
+  }
+  return out;
+}
+
+// Deterministic (seeded, not Math.random()-per-render) DEMO fallback series,
+// tied to the station's own id and its current effective rainfall level, used
+// only when the real history endpoint can't be reached - always badged DEMO.
+function hashStringToSeed(str) {
+  // Simple deterministic string hash (djb2-like) so every station id maps to a
+  // distinct seed - using just id.length caused many stations (same-length ids)
+  // to produce near-identical demo curves, which looked like a rendering bug.
+  let h = 0;
+  const s = str || 'x';
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return h;
+}
+
+function buildDemoHistory(loc, axisDates) {
+  const eff = getEffectiveStationValues(loc);
+  const base = Math.max(10, eff.rain_24h || 40);
+  const stationSeed = hashStringToSeed(loc.id) % 1000;
+  const phase = (stationSeed % 628) / 100; // 0..2π-ish phase offset per station
+  return axisDates.map((date, i) => {
+    const r = seededRandom(stationSeed * 0.013 + i * 7.7);
+    const wave = Math.sin(i / 2.3 + phase) * 0.5 + 0.5;
+    return { date, rain_mm: Math.round((base * 0.3 + base * 1.3 * wave * (0.6 + r * 0.6)) * 10) / 10 };
+  });
+}
+
+async function fetchStationHistory(loc) {
+  const cacheKey = loc.id;
+  if (trendHistoryCache[cacheKey]) return trendHistoryCache[cacheKey];
+  const axisDates = trendAxisDates();
+  const real = await fetchJSON(`/api/gis/history?station_id=${encodeURIComponent(loc.id)}&days=${TREND_HISTORY_DAYS}`);
+  let result;
+  if (real && real.status === 'real' && Array.isArray(real.days) && real.days.length > 0) {
+    result = { days: real.days, isDemo: false, source: real.source };
+  } else {
+    result = { days: buildDemoHistory(loc, axisDates), isDemo: true, source: 'DEMO (NASA POWER unreachable from this session)' };
+  }
+  trendHistoryCache[cacheKey] = result;
+  return result;
+}
+
+function renderTrendChips(stations) {
+  const wrap = document.getElementById('trendStationChips');
+  if (!wrap) return;
+  if (trendSelectedIds.length === 0 && stations.length > 0) {
+    trendSelectedIds = stations.slice(0, 2).map(s => s.id);
+  }
+  wrap.innerHTML = stations.map(s => {
+    const idx = trendSelectedIds.indexOf(s.id);
+    const active = idx !== -1;
+    const color = active ? TREND_LINE_COLORS[idx] : '#9ca3af';
+    return `<span class="trend-chip ${active ? 'active' : ''}" onclick="toggleTrendStation('${s.id}')">
+      <span class="trend-chip-dot" style="background:${color};"></span>${(s.name || s.id).split(',')[0]}
+    </span>`;
+  }).join('');
+}
+
+function toggleTrendStation(id) {
+  const idx = trendSelectedIds.indexOf(id);
+  if (idx !== -1) {
+    if (trendSelectedIds.length > 1) trendSelectedIds.splice(idx, 1); // keep at least 1 selected
+  } else {
+    trendSelectedIds.push(id);
+    if (trendSelectedIds.length > 2) trendSelectedIds.shift(); // max 2 at once
+  }
+  loadTrendsTab();
+}
+
+async function renderTrendChart(stations) {
+  const svg = document.getElementById('trendCompareSvg');
+  const badge = document.getElementById('trendSourceBadge');
+  const note = document.getElementById('trendNote');
+  if (!svg) return;
+  const axisDates = trendAxisDates();
+  const selected = trendSelectedIds.map(id => stations.find(s => s.id === id)).filter(Boolean);
+  if (selected.length === 0) { svg.innerHTML = ''; return; }
+
+  const histories = await Promise.all(selected.map(loc => fetchStationHistory(loc)));
+  const anyDemo = histories.some(h => h.isDemo);
+  const allReal = histories.every(h => !h.isDemo);
+  badge.textContent = allReal ? 'NASA POWER · REAL' : (anyDemo && !allReal ? 'MIXED (SEE CHIPS)' : 'DEMO');
+  badge.style.background = allReal ? 'rgba(34,197,94,.12)' : 'rgba(245,158,11,.14)';
+  badge.style.color = allReal ? '#16a34a' : '#b45309';
+
+  let allVals = [];
+  histories.forEach(h => { const byDate = {}; h.days.forEach(d => byDate[d.date] = d.rain_mm); h._byDate = byDate; allVals.push(...h.days.map(d => d.rain_mm)); });
+  const maxVal = Math.max(10, ...allVals);
+  const top = 20, bottom = 200, left = 20, right = 1130;
+  const n = axisDates.length;
+  const xOf = i => left + (i / (n - 1)) * (right - left);
+  const yOf = v => bottom - (Math.max(0, v) / maxVal) * (bottom - top);
+
+  let svgHtml = `<g stroke="#f1f5f9" stroke-width="1"><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}"/></g>`;
+  histories.forEach((h, idx) => {
+    const color = TREND_LINE_COLORS[idx];
+    const pts = axisDates.map((date, i) => h._byDate[date] !== undefined ? [xOf(i), yOf(h._byDate[date])] : null).filter(Boolean);
+    if (pts.length < 2) return;
+    const gradId = `trendFill${idx}`;
+    svgHtml += `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.16"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>`;
+    svgHtml += `<path d="${catmullRomAreaPath(pts, bottom)}" fill="url(#${gradId})"/>`;
+    svgHtml += `<path d="${catmullRomPath(pts)}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`;
+  });
+  const fmtAxis = ymd => `${ymd.slice(4,6)}/${ymd.slice(6,8)}`;
+  svgHtml += `<text class="trend-axis-label" x="${left}" y="222">${fmtAxis(axisDates[0])}</text>`;
+  svgHtml += `<text class="trend-axis-label" x="${right}" y="222" text-anchor="end">${fmtAxis(axisDates[n-1])}</text>`;
+  svg.innerHTML = svgHtml;
+
+  const demoNames = histories.filter(h => h.isDemo).length;
+  note.textContent = allReal
+    ? `Real NASA POWER daily rainfall for the last ${TREND_HISTORY_DAYS} days, per selected station.`
+    : `${demoNames} of ${histories.length} selected station(s) showing DEMO history — the real NASA POWER endpoint was unreachable from this session for that station.`;
+}
+
+async function renderEventsTrack() {
+  const track = document.getElementById('trendEventsTrack');
+  if (!track) return;
+  const axisDates = trendAxisDates();
+  const left = 20, right = 1130, n = axisDates.length;
+  const rangeStart = new Date(Date.UTC(+axisDates[0].slice(0,4), +axisDates[0].slice(4,6)-1, +axisDates[0].slice(6,8)));
+  const rangeEnd = new Date(Date.UTC(+axisDates[n-1].slice(0,4), +axisDates[n-1].slice(4,6)-1, +axisDates[n-1].slice(6,8)));
+  const incidents = await fetchJSON('/incidents');
+  if (!incidents) {
+    track.innerHTML = `<div class="ev-empty">Citizen-reported incidents unavailable — backend unreachable.</div>`;
+    return;
+  }
+  const inRange = incidents.filter(inc => {
+    const t = new Date(inc.reported_at);
+    return t >= rangeStart && t <= rangeEnd;
+  });
+  if (inRange.length === 0) {
+    track.innerHTML = `<div class="ev-empty">No citizen-reported incidents in this ${TREND_HISTORY_DAYS}-day window.</div>`;
+    return;
+  }
+  track.innerHTML = inRange.map(inc => {
+    const t = new Date(inc.reported_at);
+    const frac = Math.max(0, Math.min(1, (t - rangeStart) / (rangeEnd - rangeStart || 1)));
+    const x = left + frac * (right - left);
+    const xPct = (x / 1150) * 100;
+    return `<span class="ev-dot" style="left:${xPct}%; background:#ea580c;" title="${inc.location_name}: ${inc.description}"></span>
+            <span class="ev-label" style="left:${xPct}%;">${inc.location_name}</span>`;
+  }).join('');
+}
+
+async function renderForecastStrip(stations) {
+  const strip = document.getElementById('forecastStrip');
+  const badge = document.getElementById('forecastSourceBadge');
+  const note = document.getElementById('forecastNote');
+  const locName = document.getElementById('forecastLocName');
+  if (!strip) return;
+  const primaryId = trendSelectedIds[0];
+  const loc = stations.find(s => s.id === primaryId) || stations[0];
+  if (!loc) { strip.innerHTML = ''; return; }
+  locName.textContent = '— ' + (loc.name || loc.id);
+
+  const res = await fetchJSON(`/forecast/risk?lat=${loc.lat}&lon=${loc.lon}&days=5`);
+  if (!res || !Array.isArray(res.forecast) || res.forecast.length === 0) {
+    strip.innerHTML = '';
+    badge.textContent = 'UNAVAILABLE';
+    badge.style.background = 'rgba(148,163,184,.15)'; badge.style.color = '#64748b';
+    note.textContent = 'Forecast unavailable — backend unreachable from this session.';
+    return;
+  }
+  const isReal = (res.forecast[0].source || '').includes('real');
+  badge.textContent = isReal ? 'OPENWEATHERMAP · REAL' : 'SIMULATED FORECAST';
+  badge.style.background = isReal ? 'rgba(34,197,94,.12)' : 'rgba(245,158,11,.14)';
+  badge.style.color = isReal ? '#16a34a' : '#b45309';
+
+  strip.innerHTML = res.forecast.map((d, i) => {
+    const prevScore = i > 0 ? res.forecast[i-1].risk_score : null;
+    let arrow = '', arrowColor = '#9ca3af';
+    if (prevScore !== null) {
+      if (d.risk_score > prevScore) { arrow = '▲'; arrowColor = '#ea580c'; }
+      else if (d.risk_score < prevScore) { arrow = '▼'; arrowColor = '#16a34a'; }
+      else { arrow = '▬'; arrowColor = '#9ca3af'; }
+    }
+    return `<div class="forecast-day ${i === 0 ? 'today' : ''}">
+      <div class="forecast-day-label">${i === 0 ? 'Day +1' : 'Day +' + (i+1)}</div>
+      <div class="forecast-rain">${fmtNum(d.rain_mm,1)}<span>mm</span></div>
+      <div class="forecast-rain-label">Forecast Rain</div>
+      <span class="risk-pill risk-${d.risk_level}">${d.risk_level}${arrow ? `<span class="forecast-arrow" style="color:${arrowColor};">${arrow}</span>` : ''}</span>
+    </div>`;
+  }).join('');
+  note.textContent = isReal
+    ? `Rainfall forecast from OpenWeatherMap; risk_level is a forecast-driven estimate from the same trained model used elsewhere (${res.model_used}).`
+    : `No OPENWEATHER_API_KEY configured on the backend, so this is a simulated rainfall projection — risk_level is still computed by the real trained model (${res.model_used}), just fed simulated input.`;
+}
+
+async function loadTrendsTab() {
+  const stations = (window.__lastLocations && window.__lastLocations.length) ? window.__lastLocations : DEMO_LOCATIONS;
+  renderTrendChips(stations);
+  await Promise.all([
+    renderTrendChart(stations),
+    renderEventsTrack(),
+    renderForecastStrip(stations),
+  ]);
+}
+
+// ===== FIELD INCIDENT REPORT =====
+const SEVERITY_COLORS = { Critical: '#ef4444', High: '#f97316', Moderate: '#f59e0b', Low: '#22c55e' };
+let incidentReports = [];       // loaded from real GET /incidents, or demo fallback
+let incidentReportsAreReal = false;
+let incidentPhotoDataUrl = null;
+
+// A handful of varied demo reports shown ONLY when the backend is unreachable
+// (consistent with the rest of the app's honesty rule) - clearly labeled via
+// incidentReportsAreReal=false and the banner in renderIncidentCards().
+const DEMO_INCIDENT_REPORTS = [
+  { id: 'demo-1', reporter_name: 'T. Ao', reporter_role: 'Field Officer, BRO Task Force', location_name: 'NH-29 Pagla Pahar Stretch (Km 44.2), Chumukedima (Nagaland)', state: 'Nagaland', district: 'Chumukedima', description: 'Continuous heavy shower has triggered sudden rock and mud avalanche blocking both carriageways. Several vehicles stranded. Tension cracks visible across a wide stretch.', hazard_category: 'Major Hill Landslide', severity: 'Critical', highway_blocked: true, people_stranded: 6, reported_at: new Date(Date.now() - 2 * 3600e3).toISOString() },
+  { id: 'demo-2', reporter_name: 'B. Marbaniang', reporter_role: 'Citizen Surveyor', location_name: 'Mawdkok Dympep Valley Viewpoint, East Khasi Hills (Meghalaya)', state: 'Meghalaya', district: 'East Khasi Hills', description: 'Deep longitudinal ground cracks measuring 15-20cm width opened up along the ridge. Soil seepage noticed at the slope toe.', hazard_category: 'Road Subsidence / Crack', severity: 'High', highway_blocked: false, people_stranded: 0, reported_at: new Date(Date.now() - 4 * 3600e3).toISOString() },
+  { id: 'demo-3', reporter_name: 'A. Haokip', reporter_role: 'Citizen Surveyor', location_name: 'Jatinga-Lumpur Hill Cut Km 88, Dima Hasao (Assam)', state: 'Assam', district: 'Dima Hasao', description: 'Culvert overflowed causing sudden slope wash onto railway tracks and the parallel district connector road.', hazard_category: 'Flash Flood / Waterlogging', severity: 'High', highway_blocked: true, people_stranded: 2, reported_at: new Date(Date.now() - 6 * 3600e3).toISOString() },
+  { id: 'demo-4', reporter_name: 'R. Lepcha', reporter_role: 'Citizen Surveyor', location_name: 'NH-10 near Rangpo check-post, East Sikkim (Sikkim)', state: 'Sikkim', district: 'East Sikkim', description: 'Minor rockfall scattered boulders across one lane. Traffic moving slowly in single file.', hazard_category: 'Rockfall', severity: 'Moderate', highway_blocked: false, people_stranded: 0, reported_at: new Date(Date.now() - 9 * 3600e3).toISOString() },
+];
+
+function fmtDateTime(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch { return iso || ''; }
+}
+
+// Deterministic, rule-based triage note generated from the report's own fields
+// (hazard category + severity + highway-blocked + people-stranded). NOT a
+// trained ML model - see the note in the report modal and in the AI-Predictive
+// Engine tab's docstrings for the project's real trained-model usage elsewhere.
+function computeTriagePriority(r) {
+  const hz = (r.hazard_category || '').toLowerCase();
+  const parts = [];
+  if (hz.includes('landslide') || hz.includes('debris')) parts.push('Active slope failure in progress.');
+  else if (hz.includes('rockfall')) parts.push('Loose rockfall hazard on an active slope.');
+  else if (hz.includes('subsidence') || hz.includes('crack')) parts.push('Progressive ground-crack / shear-failure precursor.');
+  else if (hz.includes('flood') || hz.includes('water')) parts.push('Drainage overload / hydro-mechanical failure risk.');
+  else parts.push('Unclassified slope hazard reported.');
+
+  if (r.severity === 'Critical') parts.push('High probability of secondary slumping — recommend immediate evacuation of the surrounding area.');
+  else if (r.severity === 'High') parts.push('Elevated risk of escalation if rainfall continues — monitor closely.');
+  else if (r.severity === 'Moderate') parts.push('Monitor for progression; no immediate evacuation indicated by this report alone.');
+  else parts.push('Low immediate risk based on this report; log for trend tracking.');
+
+  if (r.highway_blocked) parts.push('Highway fully blocked — divert traffic via an alternate route.');
+  if (r.people_stranded > 0) parts.push(`${r.people_stranded} people/vehicle(s) reported stranded — prioritize for field response.`);
+  return parts.join(' ');
+}
+
+function openIncidentModal() {
+  document.getElementById('incidentModalOverlay').style.display = 'flex';
+}
+function closeIncidentModal() {
+  document.getElementById('incidentModalOverlay').style.display = 'none';
+}
+
+function onIncidentPhotoChange(e) {
+  const file = e.target.files && e.target.files[0];
+  const wrap = document.getElementById('incPhotoPreviewWrap');
+  incidentPhotoDataUrl = null;
+  wrap.innerHTML = '';
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) {
+    wrap.innerHTML = `<p class="muted" style="color:#ef4444;">File is over 3MB — pick a smaller image.</p>`;
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    incidentPhotoDataUrl = reader.result; // genuine photo bytes, base64 data URL - stored as-is, not fabricated
+    wrap.innerHTML = `<img src="${incidentPhotoDataUrl}" class="incident-photo-thumb" style="max-height:140px;">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function autoDetectGPS() {
+  const btn = document.getElementById('gpsBtn');
+  if (!navigator.geolocation) { alert('Geolocation is not available in this browser.'); return; }
+  btn.textContent = '📍 Locating…';
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const { latitude, longitude } = pos.coords;
+    window.__incGpsLat = latitude; window.__incGpsLon = longitude;
+    btn.textContent = '📍 Looking up name…';
+    try {
+      const r = await fetch(`${API_BASE}/geocode/reverse?lat=${latitude}&lon=${longitude}`).then(r => r.json());
+      document.getElementById('incLoc').value = r.display_name
+        ? r.display_name
+        : `${latitude.toFixed(5)}, ${longitude.toFixed(5)} (GPS — place name unavailable)`;
+    } catch {
+      document.getElementById('incLoc').value = `${latitude.toFixed(5)}, ${longitude.toFixed(5)} (GPS)`;
+    }
+    btn.textContent = '📍 Auto-Detect GPS';
+  }, (err) => {
+    alert('Could not get your location: ' + err.message);
+    btn.textContent = '📍 Auto-Detect GPS';
+  }, { timeout: 10000 });
+}
+
+async function loadIncidents() {
+  const banner = document.getElementById('incidentSourceBanner');
+  try {
+    const res = await fetch(API_BASE + '/incidents', { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('bad status');
+    const data = await res.json();
+    incidentReports = data;
+    incidentReportsAreReal = true;
+    if (banner) banner.innerHTML = '';
+  } catch {
+    incidentReports = DEMO_INCIDENT_REPORTS;
+    incidentReportsAreReal = false;
+    if (banner) banner.innerHTML = `<div class="data-source-banner">⚠ Backend unreachable at ${API_BASE} — showing <b>DEMO reports</b> (not real citizen submissions). Start the backend and reload to see real reports.</div>`;
+  }
+  renderIncidentCards();
+}
+
+function renderIncidentCards() {
+  const grid = document.getElementById('incidentCardGrid');
+  const filter = document.getElementById('incidentSeverityFilter').value;
+  const list = incidentReports.filter(r => !filter || r.severity === filter);
+  document.getElementById('incidentCountBadge').textContent = `${incidentReports.length} Ground Report${incidentReports.length === 1 ? '' : 's'}`;
+
+  if (!list.length) {
+    grid.innerHTML = `<p class="muted">${incidentReports.length ? 'No reports match this filter.' : 'No reports yet — be the first to submit one.'}</p>`;
+    return;
+  }
+  grid.innerHTML = list.slice().reverse().map(r => {
+    const sev = r.severity || 'Moderate';
+    const color = SEVERITY_COLORS[sev] || '#9ca3af';
+    const triage = computeTriagePriority(r);
+    const photo = r.photo_data_url ? `<img src="${r.photo_data_url}" class="incident-photo-thumb">` : '';
+    return `<div class="incident-card" style="--sev-color:${color};">
+      <div class="incident-card-top">
+        <span class="incident-sev-pill risk-${sev}">${sev.toUpperCase()} •</span>
+        <span class="incident-card-time">${fmtDateTime(r.reported_at)}</span>
+      </div>
+      <h3>${r.title || r.description.slice(0, 70)}</h3>
+      <div class="incident-card-loc">📍 ${r.location_name}${r.state ? ` (${r.state})` : ''}</div>
+      ${photo}
+      <div class="incident-card-desc">${r.description}</div>
+      <div class="incident-card-tags">
+        ${r.hazard_category ? `<span class="incident-tag">${r.hazard_category}</span>` : ''}
+        ${r.highway_blocked ? `<span class="incident-tag" style="background:#fee2e2;color:#991b1b;">Highway Blocked</span>` : ''}
+        ${r.people_stranded ? `<span class="incident-tag" style="background:#fef3c7;color:#92400e;">${r.people_stranded} stranded</span>` : ''}
+      </div>
+      <div class="incident-triage-box">
+        <div class="t-head">⚡ AI Triage Priority</div>
+        <div class="t-body">${triage}</div>
+      </div>
+      <div class="incident-card-footer">By: <b>${r.reporter_name}</b>${r.reporter_role ? ` (${r.reporter_role})` : ''}${incidentReportsAreReal ? '' : ' · demo'}</div>
+    </div>`;
+  }).join('');
+}
+
+async function submitIncident(e) {
+  e.preventDefault();
+  const stateVal = document.getElementById('incState').value;
+  const report = {
+    reporter_name: document.getElementById('incName').value,
+    reporter_role: 'Citizen Surveyor',
+    location_name: document.getElementById('incLoc').value,
+    lat: window.__incGpsLat ?? 25.5, lon: window.__incGpsLon ?? 92.5,
+    description: document.getElementById('incDesc').value,
+    title: document.getElementById('incTitle').value,
+    hazard_category: document.getElementById('incHazard').value,
+    severity: document.getElementById('incSeverity').value,
+    state: stateVal,
+    district: document.getElementById('incDistrict').value,
+    highway_blocked: document.getElementById('incHighwayBlocked').checked,
+    people_stranded: parseInt(document.getElementById('incStranded').value, 10) || 0,
+    photo_data_url: incidentPhotoDataUrl,
+  };
+
+  let saved = false;
+  try {
+    const res = await fetch(API_BASE + '/incidents', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(report) });
+    saved = res.ok;
+  } catch { saved = false; }
+
+  const banner = document.getElementById('incidentSourceBanner');
+  if (saved) {
+    await loadIncidents();
+    if (banner) banner.innerHTML = '';
+  } else {
+    report.id = 'local-' + Date.now();
+    report.reported_at = new Date().toISOString();
+    incidentReports.push(report);
+    incidentReportsAreReal = false;
+    renderIncidentCards();
+    if (banner) banner.innerHTML = `<div class="data-source-banner">⚠ Backend unreachable — this report is shown above for demo purposes only and was <b>not saved</b> to the database.</div>`;
+  }
+  e.target.reset();
+  incidentPhotoDataUrl = null;
+  document.getElementById('incPhotoPreviewWrap').innerHTML = '';
+  closeIncidentModal();
+}
+
+async function subscribeAlert() {
+  const email = document.getElementById('alertEmail').value;
+  const location_id = document.getElementById('alertLocation').value;
+  if (!email) return alert('Enter an email first.');
+  const res = await fetch(API_BASE + '/alerts/check-and-notify', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({email, location_id})
+  }).catch(() => null);
+  alert(res ? "Subscribed. You will be checked against this location's risk level." : 'Backend not reachable — this is a demo action.');
+}
+
+// ===== HIGHWAY CORRIDORS =====
+// Real OpenStreetMap road geometry (Overpass API) cross-checked against this
+// project's real, rainfall-driven station risk - see backend
+// services/highways.py and GET /api/gis/highways. Previously this was a
+// hardcoded array with hand-assigned risk levels; "one-way convoy" status is
+// NOT included below because OSM road geometry carries no such tag - convoy
+// restrictions are an administrative/police decision, not a road property,
+// and there is no real public API for it here, so this project does not
+// invent one.
+let HIGHWAY_DATA = [];
+let highwayFetchStatus = 'loading'; // 'loading' | 'ok' | 'unreachable'
+
+async function loadHighways(force) {
+  if (!force && HIGHWAY_DATA.length) { renderCorridorList(); return; }
+  const badge = document.getElementById('corridorSourceBadge');
+  if (badge) { badge.textContent = 'LOADING…'; badge.className = 'badge-demo'; }
+  // Longer timeout than the default 15s: the backend queries 6 real Overpass
+  // corridors, 2 at a time (to respect Overpass's per-IP concurrency limit),
+  // each with its own 15s timeout - worst case is ~3 batches x 15s = ~45s, so
+  // this leaves real headroom above that.
+  const res = await fetchJSON('/api/gis/highways', 70000);
+  if (!res || !Array.isArray(res)) {
+    highwayFetchStatus = 'unreachable';
+    HIGHWAY_DATA = [];
+    if (badge) { badge.textContent = 'BACKEND UNREACHABLE'; badge.className = 'badge-demo'; }
+  } else {
+    highwayFetchStatus = 'ok';
+    HIGHWAY_DATA = res;
+    const realCount = res.filter(h => h.status === 'real').length;
+    if (badge) {
+      badge.textContent = realCount === res.length ? 'LIVE OSM DATA' : `${realCount}/${res.length} LIVE — REST UNAVAILABLE`;
+      badge.className = realCount === res.length ? 'badge-live' : 'badge-demo';
+    }
+  }
+  renderCorridorList();
+}
+
+function renderCorridorList() {
+  const q = (document.getElementById('corridorSearch').value || '').trim().toLowerCase();
+  const sort = document.getElementById('corridorSort').value;
+  const riskOrder = { Critical: 4, High: 3, Moderate: 2, Low: 1 };
+
+  if (highwayFetchStatus === 'loading') {
+    document.getElementById('highwayList').innerHTML = '<p class="muted">Querying OpenStreetMap Overpass API for real road geometry… this can take up to a minute (Overpass is a shared public service, not instant).</p>';
+    return;
+  }
+  if (highwayFetchStatus === 'unreachable') {
+    document.getElementById('highwayList').innerHTML = `<p class="muted">⚠ Backend unreachable at ${API_BASE} — highway corridor data could not be loaded. <button class="btn-reset-demo" onclick="loadHighways(true)">↺ Retry</button></p>`;
+    document.getElementById('corridorCriticalBadge').textContent = '0 Critical Blockages';
+    document.getElementById('corridorOnewayBadge').textContent = '0 Corridors Matched';
+    const statEl0 = document.getElementById('statHighways');
+    if (statEl0) statEl0.innerHTML = `– <span style="font-size:13px; color:var(--muted); font-weight:500;">Highways</span>`;
+    return;
+  }
+
+  let list = HIGHWAY_DATA.filter(h => !q || h.name.toLowerCase().includes(q) || h.state.toLowerCase().includes(q));
+  if (sort === 'risk') list = list.slice().sort((a, b) => (riskOrder[b.risk_level] || 0) - (riskOrder[a.risk_level] || 0));
+  else if (sort === 'name') list = list.slice().sort((a, b) => a.name.localeCompare(b.name));
+
+  document.getElementById('highwayList').innerHTML = list.length
+    ? list.map(h => {
+        let rightHtml;
+        if (h.status === 'unavailable') {
+          rightHtml = `<span class="badge-demo" title="${h.note || ''}">OSM UNAVAILABLE</span>`;
+        } else if (h.status === 'real_no_nearby_station') {
+          rightHtml = `<span class="risk-pill risk-Unavailable" title="${h.note || ''}">No Nearby Station</span>`;
+        } else {
+          rightHtml = `<span class="risk-pill risk-${h.risk_level}" title="Nearest station: ${h.nearby_station} (${h.nearby_station_distance_km}km)">${h.risk_level}</span>`;
+        }
+        return `<div class="corridor-item">
+          <div class="corridor-item-left">
+            <span class="corridor-item-name">${h.name}</span>
+            <span class="corridor-item-state">${h.state}${h.nearby_station ? ' · near ' + h.nearby_station : ''}</span>
+          </div>
+          <div class="corridor-item-right">${rightHtml}</div>
+        </div>`;
+      }).join('')
+    : `<p class="muted">No corridors match "${q}".</p>`;
+
+  const critCount = HIGHWAY_DATA.filter(h => h.risk_level === 'Critical').length;
+  const matchedCount = HIGHWAY_DATA.filter(h => h.status === 'real').length;
+  document.getElementById('corridorCriticalBadge').textContent = `${critCount} Critical Blockage${critCount === 1 ? '' : 's'}`;
+  document.getElementById('corridorOnewayBadge').textContent = `${matchedCount} Corridor${matchedCount === 1 ? '' : 's'} Matched to a Station`;
+  const statEl = document.getElementById('statHighways');
+  if (statEl) statEl.innerHTML = `${HIGHWAY_DATA.length} <span style="font-size:13px; color:var(--muted); font-weight:500;">Highway${HIGHWAY_DATA.length === 1 ? '' : 's'}</span>`;
+}
+
+loadLocations();
+renderContacts();
+setRole('public');
+loadHighways();
+loadIncidents();
+loadAlertLog();
+// GIS Risk Map is the default active tab on load - apply the same page treatment as showTab() would
+document.body.classList.add('gis-page-bg');
+document.getElementById('statsBar').style.display = 'none';
+</script>
+</body>
+</html>

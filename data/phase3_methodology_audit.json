@@ -1,0 +1,130 @@
+{
+  "generated_at": "2026-10-05",
+  "scope": "Phase 3 - target semantics verification and leakage analysis. No model trained. No files modified except these two deliverables.",
+  "sources_consulted": [
+    {"title": "Titti G, Sarretta A, Lombardo L, Crema S, Pasuto A, Borgatti L (2022) Mapping Susceptibility With Open-Source Tools: A New Plugin for QGIS. Front. Earth Sci. 10:842425", "doi": "10.3389/feart.2022.842425", "type": "peer-reviewed paper describing the exact methodology and NE India application"},
+    {"title": "SZ-plugin official documentation", "url": "https://sz-docs.readthedocs.io", "type": "primary source - plugin's own usage docs"},
+    {"title": "SZ-plugin source repository", "url": "https://github.com/SZtools/SZ-plugin", "type": "primary source - official code repo, credits this exact paper/dataset"},
+    {"title": "Dataset record", "url": "https://zenodo.org/records/6575572", "type": "the dataset itself"},
+    {"title": "Actual inspected GeoPackage field values (user-run Phase 2b output)", "type": "empirical - our own real data", "weight": "highest - this is ground truth, not a claim from a document"}
+  ],
+  "task1_methodology_findings": {
+    "y": {
+      "meaning": "The binary dependent/target variable used by the SZ-plugin's modelling functions.",
+      "evidence": "SZ-plugin official docs state explicitly: 'select the dependent variable. In case of binomial selection the variable is 0/1' - directly describing this exact field's role.",
+      "evidence_tier": "CONFIRMED by primary source (plugin's own documentation)",
+      "confidence": "high"
+    },
+    "lsd": {
+      "meaning": "Landslide density - the fraction/ratio of a slope unit's area covered by mapped landslide polygons from the source inventory (standard variable in this exact research lineage; Lombardo is a co-author and leading researcher in slope-unit-based susceptibility using this precise variable).",
+      "evidence": "(1) Domain literature in this exact methodological lineage (Van Den Eeckhaut, Lombardo et al.) defines 'landslide density' as total landslide area / slope unit area, a standard predisposing-to-target variable. (2) Our OWN empirical data shows lsd is non-zero for EXACTLY 3,078 rows, and y=1 for EXACTLY 3,078 rows out of the same 124,553 total - this exact numeric match is strong direct evidence, not an assumption.",
+      "evidence_tier": "STRONGLY INFERRED (empirical match + domain convention), name/definition NOT found verbatim in a data dictionary",
+      "confidence": "high, but not a primary-source glossary confirmation"
+    },
+    "su": {
+      "meaning": "Slope Unit identifier - the spatial modelling/mapping unit used throughout this analysis.",
+      "evidence": "Paper explicitly states the mapping unit used is 'slope units' (citing Alvioli et al., 2016), consistent across all susceptibility-zoning literature in this lineage. 124,553 rows = 124,553 slope units covering the study domain.",
+      "evidence_tier": "CONFIRMED by primary source (the paper's own methodology section)",
+      "confidence": "high"
+    },
+    "SI": {
+      "meaning": "Susceptibility Index - the plugin's own MODEL OUTPUT score per slope unit, produced by fitting WoE/LR (etc.) to the predictors and y.",
+      "evidence": "Multiple independent sources (paper abstract, ResearchGate excerpt, Frontiers XML) explicitly name 'susceptibility index (SI)' as the plugin's computed output; the SZ-plugin GUI groups functions as 'SI' and 'SI k-fold' which 'fit or cross-validate' the model - i.e. SI is produced BY the model fit, not an input to it.",
+      "evidence_tier": "CONFIRMED by primary source (paper + plugin docs, multiple independent mentions)",
+      "confidence": "high"
+    },
+    "ID": {
+      "meaning": "Not established from the available source beyond a generic row/feature identifier (distinct from 'su', which is explicitly the slope-unit identifier per the paper).",
+      "evidence": "No source found that defines 'ID' specifically as distinct from 'su'. In our empirical inspection, ID showed the same cardinality pattern as a generic row index.",
+      "evidence_tier": "NOT ESTABLISHED beyond generic-identifier inference",
+      "confidence": "low - explicitly flagged as uncertain, not guessed as something more specific"
+    },
+    "spatial_units_124553": {
+      "answer": "Slope units (polygons), not individual landslide point events and not a regular grid.",
+      "evidence_tier": "CONFIRMED by primary source"
+    },
+    "geographic_region": {
+      "answer": "Northeast India (per the paper's title/keywords and application section), encompassing the region studied in Titti et al. 2022.",
+      "note": "Our Phase 2/2b inspection has not yet independently confirmed how many of the 124,553 slope units fall within each of the 8 specific NER states - that would require a boundary join, not yet performed.",
+      "evidence_tier": "CONFIRMED (region) / NOT YET VERIFIED (per-state breakdown)"
+    },
+    "inventory_date_range": {
+      "answer": "Not established from the available source. The underlying landslide inventory is attributed to the Geological Survey of India (via Bhukosh) in the paper, but no specific year range for the inventory used in THIS dataset was found in the sources consulted.",
+      "evidence_tier": "NOT ESTABLISHED"
+    },
+    "how_positive_negative_samples_generated": {
+      "answer": "Strongly inferred: y=1 slope units are those containing real mapped landslide area (lsd > 0, from the GSI inventory); y=0 slope units are those with no mapped landslide area (lsd = 0) within the same slope-unit partition of the study domain. This is the standard approach in this exact methodological lineage - negatives are NOT randomly generated, they are slope units genuinely absent of inventoried landslides.",
+      "evidence_tier": "STRONGLY INFERRED from the exact empirical count match (3,078 = 3,078) + standard methodology in this research lineage",
+      "confidence": "high, but the exact threshold rule (e.g. whether any lsd>0, or some minimum threshold) is not confirmed verbatim"
+    },
+    "was_y_derived_from_inventory_presence": {
+      "answer": "Yes, strongly supported.",
+      "evidence_tier": "STRONGLY INFERRED"
+    },
+    "was_lsd_used_to_create_y": {
+      "answer": "Yes, strongly supported by the exact matching counts.",
+      "evidence_tier": "STRONGLY INFERRED (near-certain given the exact numeric match, but not a verbatim primary-source statement of the formula)"
+    },
+    "was_SI_calculated_from_same_predictors_and_target": {
+      "answer": "Yes - SI is explicitly the model's fitted output, produced by fitting a classifier (WoE/LR/etc.) to the covariates AND y together.",
+      "evidence_tier": "CONFIRMED by primary source"
+    },
+    "original_model_variables": {
+      "answer": "Per the paper (Figure 4 description) and our Phase 2b field list: slope, plan curvature, profile curvature, relative relief, annual rainfall, plus (from our actual inspected fields) elevation, aspect, NDVI, lithology, land-cover variables, and PGA.",
+      "evidence_tier": "CONFIRMED (paper) + CONFIRMED (our own field inspection)"
+    }
+  },
+  "task2_leakage_table": [
+    {"field": "lsd", "meaning": "Landslide density per slope unit (area fraction)", "relationship_to_y": "y appears to be a direct binarization of lsd (exact count match: both non-zero/1 for exactly 3,078 of 124,553 rows)", "safe_as_feature": false, "reason": "Using lsd to predict y would be using the value y was derived from - this is the textbook definition of target leakage. A model 'trained' on this would show near-perfect but meaningless performance."},
+    {"field": "SI", "meaning": "Susceptibility Index - the ORIGINAL model's fitted output score", "relationship_to_y": "SI was computed BY fitting a model to y and the predictors - it is a result, not an input", "safe_as_feature": false, "reason": "SI already encodes a model's prediction of y. Using it as a feature for a NEW model predicting y would mean the new model is just learning to decode the old model's answer, not learning from real environmental conditions."},
+    {"field": "su", "meaning": "Slope unit identifier", "relationship_to_y": "None - purely a spatial index/key", "safe_as_feature": false, "reason": "An arbitrary ID number carries no real predictive information; including it risks the model memorizing specific unit IDs rather than learning generalizable patterns (and it cannot be computed for a NEW location anyway)."},
+    {"field": "ID", "meaning": "Not established - likely a generic row identifier", "relationship_to_y": "None expected", "safe_as_feature": false, "reason": "Same reasoning as su - an identifier, not an environmental signal."},
+    {"field": "cross-validation / fit result layers ('fit lr', 'fit woe', 'lr crossvalidation', 'woe crossvalidation')", "meaning": "Outputs of the ORIGINAL model's fitting/validation process", "relationship_to_y": "Derived using y as the target during the original fit/CV", "safe_as_feature": false, "reason": "These are entire layers of model RESULTS, not raw environmental predictors - none of their fields should be used as inputs to a new model."},
+    {"field": "elevation, slope, aspect, curvature/relief, NDVI, lithology, land-cover, PGA, rainfall-related covariates (from SUcovariate layers)", "meaning": "Real environmental/terrain predisposing factors per slope unit", "relationship_to_y": "These are the INDEPENDENT variables the original model was fit on - they describe terrain/environment, not the landslide outcome itself", "safe_as_feature": true, "reason": "These are genuine predisposing-factor measurements, computed independently of y (from DEM, satellite, geological survey sources), not derived from the landslide inventory itself."}
+  ],
+  "task3_susceptibility_vs_early_warning": {
+    "A_static_susceptibility_model": {
+      "can_this_gpkg_support_it": true,
+      "explanation": "Yes - this is exactly what the dataset was built for: static terrain/environmental predictors (elevation, slope, aspect, lithology, land cover, etc.) predicting a static binary landslide-presence label (y) per slope unit. This answers 'where is landslide-prone terrain', not 'will a landslide happen on a specific day'."
+    },
+    "B_dynamic_rainfall_triggered_event_prediction_model": {
+      "can_this_gpkg_support_it_alone": false,
+      "explanation": "No - this dataset has no per-event DATE field confirmed (Phase 2b found no verified date/year column in the inspected layers), and its rainfall-related covariates are static per-slope-unit climatological averages, not a time series of rainfall preceding specific dated landslide events. A dynamic/early-warning model needs to learn 'given CURRENT rainfall conditions, what's the risk NOW' - which requires knowing WHEN each landslide happened, to pair it with the rainfall that actually preceded it.",
+      "additional_real_data_required": [
+        "Individual landslide event dates (not present in this dataset as currently understood - would need the actual point/date-level inventory, e.g. the NRSC/Bhuvan seasonal inventories, confirmed NOT bulk-downloadable in Phase 1, or another dated source)",
+        "Historical daily/sub-daily rainfall preceding each dated event (available via NASA POWER, which this project already integrates, IF real event dates/locations can be obtained)",
+        "A defensible negative-sampling strategy for the DYNAMIC case specifically: non-event date/location pairs in the same regions, which is a different problem from this dataset's static presence/absence labeling"
+      ]
+    }
+  },
+  "task4_feature_candidates": {
+    "SAFE_STATIC_FEATURES": [
+      "elevation", "aspect", "slope", "curvature/relief variables", "NDVI", "lithology", "land-cover variables", "PGA (peak ground acceleration)", "the static rainfall-related covariates already present in the SUcovariate layers (climatological, not event-specific)"
+    ],
+    "POTENTIALLY_SAFE_DYNAMIC_FEATURES": [
+      "Real-time/recent rainfall (rain_24h/72h/7d) - already integrated in this project via NASA POWER, but NOT yet linkable to this dataset's y without real event dates",
+      "Current soil moisture (NASA POWER GWETTOP) - already integrated, same caveat as above"
+    ],
+    "DO_NOT_USE_LEAKAGE_FEATURES": [
+      "lsd", "SI", "su", "ID", "any field from the 'fit lr'/'fit woe'/'lr crossvalidation'/'woe crossvalidation' layers"
+    ]
+  },
+  "task5_final_recommendation": {
+    "A_can_replace_synthetic_for_susceptibility_model": {
+      "answer": "Yes, with high confidence - subject to one remaining verification: confirming the per-NER-state breakdown of the 124,553 slope units (not yet done), and extracting only the SAFE_STATIC_FEATURES + y into a clean training table."
+    },
+    "B_can_replace_synthetic_for_dynamic_early_warning_model_alone": {
+      "answer": "No."
+    },
+    "C_missing_real_data_for_dynamic_model": {
+      "answer": "Dated, located individual landslide events (not just static presence/absence per slope unit) - see task3.B additional_real_data_required above."
+    },
+    "D_build_susceptibility_first_then_combine": {
+      "answer": "Yes - recommended. Build and validate the static susceptibility model on this real dataset first (replacing the current synthetic model for that purpose), then separately pursue dated event data to build/combine a dynamic rainfall-trigger layer on top of it later. This matches the project's existing phased approach."
+    },
+    "E_next_data_acquisition_step": {
+      "answer": "(1) Verify per-NER-state coverage of the 124,553 slope units via a spatial join against state boundaries (no new external data needed - can use the GeoPackage's own geometry + a boundary source). (2) Separately pursue a real, dated, point-level landslide event source for the dynamic model - revisit NRSC/Bhuvan access options or look for a research-published dated inventory, since the bulk WFS route was already confirmed closed in Phase 1."
+    }
+  },
+  "stop_confirmation": "Analysis complete. NO model trained. NO training dataset created. NO files modified except these two Phase 3 deliverables. India_dataset.gpkg not touched. Frontend/backend/model not touched."
+}

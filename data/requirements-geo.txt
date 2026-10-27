@@ -1,0 +1,11 @@
+# Dependencies for inspect_gpkg.py / future ML dataset construction only.
+# NOT added to backend/requirements.txt - this is a one-off data-prep step,
+# not a backend runtime dependency.
+#
+# pyogrio is used (not fiona) because it ships prebuilt wheels on Windows,
+# which is much more reliable than fiona's GDAL-from-source route - relevant
+# given this project's earlier scikit-learn/DLL install issues on this machine.
+# (shapely is pulled in automatically as a geopandas dependency - no need to list it separately)
+pyogrio
+geopandas
+pandas

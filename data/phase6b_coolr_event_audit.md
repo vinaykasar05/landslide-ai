@@ -1,0 +1,7 @@
+# Phase 6B COOLR Event Audit
+
+Generated: 2026-10-22T05:43:20.087443+00:00
+
+## COOLR_ACCESS_FAILED
+
+PART A FAILED - could not reach COOLR service: ReadTimeout: HTTPSConnectionPool(host='maps.nccs.nasa.gov', port=443): Read timed out. (read timeout=30)

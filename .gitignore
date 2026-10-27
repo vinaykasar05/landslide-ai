@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+backend/venv/
+backend/venv2/
+*.egg-info/
+
+# Secrets - never commit real credentials
+backend/.env
+.env
+
+# Runtime/generated files - regenerated automatically, don't belong in git
+backend/landslide_app.db
+backend/terrain_cache.json
+backend/highways_cache.json
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/

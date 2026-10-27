@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-10-05",
+  "scope": "Research/audit only. No model trained, no frontend/backend/model changes, no data downloaded in bulk, no synthetic events created.",
+
+  "source_url": "https://bhuvan-app1.nrsc.gov.in/disaster/usrtasks/landslide/landslide.php?uname=empty",
+  "page_directly_fetched_and_inspected": true,
+
+  "page_structure_findings": {
+    "landslide_inventory_section": "Tree menu of: Landslide Inventory (RISAT-SAR), Event-based inventory (named disasters: J&K 2014, Kedarnath 2013, Okhimath 2012, Sikkim 2011, Karnataka/Kerala/Tamilnadu 2018, Kerala 2019/2020/2021, Maharashtra 2021, Uttarakhand 2021), Route-wise inventory (Amarnath pilgrimage), and Seasonal landslide inventory (2014 Season, 2017 Season, 2023 Season - each listing individual states including all 8 NER states with an 'Identify Features' icon next to each)",
+    "landslide_hazard_zones_section": "SEPARATE product - polygon susceptibility zones, state dropdown limited to Himachal Pradesh, Meghalaya, Uttarakhand only (NOT all 8 NER states). This section includes a visible 'Webservice URLS' menu item and a working WMS GetLegendGraphic call referencing layer disaster:RUOKKE_LHZ_01 on server bhuvan-vec2.nrsc.gov.in - confirming this specific product (hazard zones, not the seasonal event inventory) has documented WMS access for at least Meghalaya among NER states.",
+    "downloadable_pdfs_present": [
+      "Sikkim_Landslide_2016.pdf", "J&K_LANDSLIDE_sept_2014.pdf", "Uttarkhand_Landslide_inventory_2013.pdf",
+      "Landslides_Atlas_of_India_Updated_25Aug2023.pdf (65.3MB - the national Atlas document itself, a map compendium, not a machine-readable record set)"
+    ],
+    "critical_distinction_confirmed": "The Seasonal Landslide Inventory (2014/2017/2023, all 8 NER states listed) uses ONLY the 'Identify Features' interaction - no visible Webservice URLS link for this specific product, unlike the separate Hazard Zones product which does expose one (for its 3 states only, Meghalaya being the only NER state)."
+  },
+
+  "protocol_determination": {
+    "method": "WMS (point-query via GetFeatureInfo, inferred from the 'Identify Features' UI pattern) for both the inventory and hazard-zone products; WFS confirmed unavailable platform-wide",
+    "wfs_status": "CONFIRMED DISABLED - not just for this one layer. Two independent pieces of evidence: (1) this project's own Phase 1 direct test of bhuvan-vec3's WFS GetCapabilities returned 'Service WFS is disabled'. (2) An independent third-party open-source project (github.com/Praddy-GByte/srot, a QGIS plugin cataloging 342 real Bhuvan layers) states directly: 'Bhuvan's WFS is switched off and answers HTTP 200 with an OWS exception body... The plugin never offers WFS.' This confirms the restriction is a platform-wide architectural decision, not specific to the landslide layer or one server.",
+    "arcgis_rest": "NOT APPLICABLE - Bhuvan runs GeoServer (OGC WMS/WFS/WCS/WPS stack per its own documented service list), not an Esri ArcGIS REST stack like NASA's COOLR.",
+    "geojson_kml_csv_direct_download": "No direct download link found for the seasonal inventory records themselves (as opposed to the PDF Atlas document, which is a different, non-tabular product)."
+  },
+
+  "exact_service_urls_for_2014_and_2023": {
+    "2014_seasonal_inventory": "NOT CONFIRMED - no direct WFS/WMS layer name found on the page itself for the seasonal inventory points specifically. A real naming PATTERN was found via independent third-party evidence for a DIFFERENT state/product: 'UK_SLIM_2017', 'ls_Uttarakhand_2014_SLIM' (Uttarakhand Seasonal Landslide Inventory Map, found by github.com/aditidesai0619-cell/VIKALP, who directly queried bhuvan-vec2.nrsc.gov.in/bhuvan/wms and confirmed these as real, working layer names with GetFeatureInfo). This suggests a plausible pattern of '{STATE_CODE}_SLIM_{YEAR}' - NOT independently confirmed for any NER state's 2014 layer in this session.",
+    "2023_seasonal_inventory": "NOT CONFIRMED for the same reason - no NER-specific 2023 layer name found.",
+    "confidence_note": "These are credible, evidence-based hypotheses (sourced from two real, independently-verified third-party projects that did similar investigations for other states), not guesses pulled from nowhere - but they are explicitly NOT confirmed for any of the 8 NER states, and must be tested, not assumed."
+  },
+
+  "fields_attributes_exposed": {
+    "status": "NOT DIRECTLY CONFIRMED for the seasonal inventory's own GetFeatureInfo response schema",
+    "evidence_from_similar_layer": "The independent VIKALP project's GetFeatureInfo test against the Uttarakhand SLIM layers returned an empty result at their specific test coordinate ('No feature intersection verified') - meaning the QUERY MECHANISM works and returns a real (if empty for that point) response, but the actual field schema when a feature IS hit was not captured in the available citation.",
+    "unique_id": "unknown", "latitude": "unknown (point layer, so geometry carries coordinates, but attribute field name for lat/lon not confirmed)",
+    "longitude": "unknown", "date_year": "unknown - the year is encoded in the LAYER NAME (e.g. '_2014', '_2017') rather than necessarily being a per-feature attribute field, based on how the inventory is organized by season on the page",
+    "state": "unknown as an attribute - but encoded in which specific layer/state menu item was queried",
+    "district": "unknown", "landslide_type_category": "unknown", "trigger": "unknown",
+    "honest_summary": "This cannot be determined without actually executing a GetFeatureInfo request against a real feature and inspecting the response - which requires real network access this session's tools do not have for this domain."
+  },
+
+  "small_test_query_performed_in_this_session": {
+    "attempted": true,
+    "result": "BLOCKED - two tools tested, both failed",
+    "attempt_1_conversational_fetch": "A GetLegendGraphic WMS call (image endpoint) was successfully reached, confirming the WMS service itself is live and responding - but this returns an image, not inspectable data. A parameterized GetFeatureInfo/GetCapabilities query URL could not be fetched - 'This URL was not in any prior search or fetch result' (same URL-indexing restriction encountered in Phase 6B against COOLR).",
+    "attempt_2_code_sandbox": "Direct HTTP request via Python's requests library to bhuvan-vec2.nrsc.gov.in returned HTTP 403 with header x-deny-reason: host_not_allowed and body 'Host not in allowlist: bhuvan-vec2.nrsc.gov.in' - confirmed via direct inspection of the response headers, not assumed. This is the sandbox's own egress proxy blocking the domain, not an NRSC-side rejection.",
+    "conclusion": "Neither of this assistant's tools can execute the live small test query this phase requires. A ready-to-run test script (data/test_bhuvan_landslide_query.py) is provided for the user to run from their own unrestricted network."
+  },
+
+  "pagination_record_limits": "UNKNOWN - GetFeatureInfo is inherently a per-click, per-point query (not a bulk paginated listing), so 'pagination' in the WFS/REST sense does not apply the same way; each request returns only the feature(s) at/near the queried pixel/coordinate, meaning bulk retrieval would require systematically querying many coordinates, not a single paginated bulk call.",
+
+  "programmatic_download_feasibility": {
+    "bulk_download": false,
+    "reasoning": "No WFS (confirmed disabled platform-wide) and no direct file/REST export found. GetFeatureInfo point-querying is the only live-data-returning mechanism identified, and it only returns features that intersect the exact queried point - making it fundamentally unsuited to retrieving an unknown-location inventory in bulk. It could theoretically be used to CONFIRM a landslide at an ALREADY-KNOWN coordinate (as the VIKALP project used it), not to DISCOVER an inventory of unknown locations."
+  },
+
+  "crs": "Not independently confirmed for the landslide layers specifically in this session; Bhuvan's broader service stack (per prior project research) commonly uses EPSG:4326",
+  "geometry_type": "Point (inferred from the 'Identify Features'/click-to-query interaction pattern, consistent with a seasonal landslide inventory being point-located events)",
+  "dates_available": "At the layer level (year is part of the layer name), not confirmed at the per-feature attribute level",
+  "coordinates_available": "Implicit in the point geometry if/when a feature is successfully queried, not independently confirmed via an actual successful query in this session",
+
+  "readiness_criteria_evaluation": {
+    "criterion_1_can_access_actual_inventory_records": false,
+    "criterion_2_usable_geometry_coordinates": "UNCONFIRMED - plausible but not demonstrated",
+    "criterion_3_identify_relevant_ner_states": true,
+    "criterion_4_programmatic_or_reproducible_retrieval": false,
+    "criterion_5_clear_nrsc_isro_bhuvan_provenance": true,
+    "all_five_met": false
+  },
+
+  "suitable_for_phase_7_real_event_dataset": false,
+  "reasoning": "Two of the five required criteria are not met: no bulk programmatic/reproducible retrieval method exists (GetFeatureInfo is point-query-only, not bulk-capable), and usable per-feature geometry/coordinates were not actually demonstrated in this session (blocked by tool access, not confirmed absent).",
+
+  "exact_next_action": "Run data/test_bhuvan_landslide_query.py from an unrestricted network (the user's own machine) to: (1) discover real NER-state layer names via WMS GetCapabilities (the 7-10MB document mentioned by the independent srot project), (2) attempt a GetFeatureInfo test against a known real landslide coordinate in Meghalaya or Assam (e.g. one from the ASDMA or NESAC sources already researched) to confirm the actual field schema, (3) report back whatever response is returned - even an empty/no-feature response is informative, as seen in the VIKALP project's own honest reporting of that exact outcome.",
+
+  "final_decision": "NOT_READY_FOR_PHASE_6E",
+  "final_decision_reasoning": "Bhuvan's seasonal landslide inventory has confirmed NRSC/ISRO provenance and confirmed NER-state coverage by name, but has no confirmed bulk-programmatic or reproducible retrieval path - only point-by-point querying against already-known coordinates, which cannot discover an inventory of unknown landslide locations. This is a structural limitation of the service itself (reinforced by two independent real third-party projects' findings), not merely this session's tool access.",
+  "comparison_to_prior_findings": "This does not override the NESAC finding from Phase 6C (still the strongest candidate, READY_WITH_MANUAL_ACCESS) - Bhuvan remains VISUAL_ONLY/point-query-only as found in Phase 1, now with stronger, independently-corroborated evidence for exactly why."
+}

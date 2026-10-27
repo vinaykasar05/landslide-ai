@@ -1,0 +1,239 @@
+{
+  "generated_at": "2026-10-05",
+  "scope": "Research only. No model trained, no files modified except these two deliverables.",
+  "verification_legend": {
+    "VERIFIED_LIVE": "Directly fetched the real source (page, API schema, or live query) in this session",
+    "VERIFIED_CITED": "Confirmed via a specific, named, checkable citation (paper, DOI, official page) found in this session",
+    "NOT_VERIFIED": "Mentioned in a source but not independently confirmed by direct access",
+    "ACCESS_REQUIRED": "Requires registration/credentials/manual steps not completed in this session"
+  },
+
+  "part_a_landslide_event_datasets": [
+    {
+      "dataset_name": "COOLR (Cooperative Open Online Landslide Repository) - Landslide Points / Polygons layers",
+      "organization": "NASA Goddard Space Flight Center / NCCS",
+      "official_url": "https://landslides.nasa.gov/viewer (viewer), https://gpm.nasa.gov/landslides/data.html (download/citation info), https://maps.nccs.nasa.gov/mapping/rest/services/landslide_viewer/Landslide_Points/MapServer (REST API)",
+      "verification_status": "VERIFIED_LIVE",
+      "verification_note": "Directly fetched the live ArcGIS REST schema for the Landslide_Polygons layer and confirmed real fields including event_date, latitude, longitude, landslide_trigger, admin_division_name, event_import_source. Also confirmed via an independent third-party analysis citing COOLR: 1,735 India events (2000-2020) with verified coordinates, 13.4% of the global total.",
+      "geographic_coverage": "Global (156 countries per third-party analysis)",
+      "all_8_ner_states_covered": "NOT INDEPENDENTLY VERIFIED - country-level India coverage (1,735 events) is confirmed real; a live spatial query filtered to the 8 NER states' bounding box was attempted in this session but blocked by this assistant's own tool permissions (not a limitation of the data source itself). This is a concrete, low-effort next step - the REST API is public and documented to support geometry-filtered queries.",
+      "event_count": "1,735 for all of India (2000-2020), per third-party analysis. NER-specific subset count: NOT YET DETERMINED.",
+      "date_range": "GLC component: since 2007. Citizen-science (Landslide Reporter) component: since March 2018. Combined catalog spans wider via merged external inventories.",
+      "has_actual_date_per_record": true,
+      "coordinates_available": true,
+      "coordinate_format": "Decimal degrees (latitude, longitude fields), WGS84 (EPSG:4326)",
+      "event_location_type": "Both point and polygon representations exist (Landslide_Points and Landslide_Polygons layers)",
+      "landslide_occurrence_explicit": true,
+      "event_type_available": true,
+      "event_type_field": "landslide_category (landslide, mudslide, debris_flow, etc.) and landslide_trigger (rain, downpour, continuous_rain, etc.)",
+      "downloadable": true,
+      "file_formats": ["File geodatabase (.gdb)", "Shapefile (.shp)", "CSV"],
+      "api_availability": "ArcGIS REST API, confirmed live, supports advanced queries, statistics, spatial filtering, pagination - no authentication wall observed in this session",
+      "access_restrictions": "None observed for basic query/download access",
+      "license_restrictions": "Open/citable - specific citation required per sub-source (GLC citation vs. Landslide Reporter citation vs. individual merged-inventory citations, as documented on the official page)",
+      "update_frequency": "Ongoing (citizen science submissions continue; GLC historically compiled through ~2017 in its original form, COOLR continues to merge new sources)",
+      "realistic_for_ml_training": "YES for event presence/date/location. Caveat: citizen-science and media-report-based records carry inherent reporting bias (events near roads/population more likely reported than remote slope failures) - a real limitation to document, not a reason to discard.",
+      "limitations": [
+        "Reporting bias toward accessible/populated areas",
+        "NER-specific event count not yet confirmed - requires a follow-up spatial query",
+        "Location accuracy varies by record (an explicit 'location_accuracy' field exists: exact / within 1km / within 5km / etc. - must be used to filter for ML-quality precision)"
+      ]
+    },
+    {
+      "dataset_name": "NASA Global Landslide Catalog (GLC) - standalone CSV export",
+      "organization": "NASA Goddard Space Flight Center",
+      "official_url": "https://data.nasa.gov/dataset/global-landslide-catalog-export",
+      "verification_status": "VERIFIED_CITED",
+      "verification_note": "Already integrated into this project's data/fetch_landslide_data.py (built in an earlier phase). Previously found to have sparse India-specific coverage as a standalone export - COOLR (above) supersedes this as the richer source since it includes this GLC data plus citizen-science additions.",
+      "all_8_ner_states_covered": "NOT_VERIFIED as a standalone subset - superseded by COOLR investigation above",
+      "recommendation": "Do not use this standalone export separately from COOLR - COOLR already includes it (filterable via event_import_source='GLC')."
+    },
+    {
+      "dataset_name": "NESAC Seasonal Landslide Inventory for NER (annual reports, e.g. NER-2025)",
+      "organization": "North Eastern Space Applications Centre (NESAC), Dept. of Space, Govt. of India - NER-DRR programme",
+      "official_url": "https://nesac.gov.in/ , https://www.nerdrr.gov.in/ (programme page), NeSDR portal: https://www.nesdr.gov.in/ (blocked bot-detection in this session, access method not confirmed)",
+      "verification_status": "VERIFIED_CITED",
+      "verification_note": "Confirmed via a news report citing the official NESAC report abstract: 374 documented landslide incidents for NER in 2025, compiled from media/field reports, INCLUDING '24 hours of total rainfall prior to each event collected from the GPM Mission' - meaning NESAC has already performed an event-rainfall join for at least this report.",
+      "geographic_coverage": "NER-specific (exactly this project's target region) - this is the single most geographically relevant source found",
+      "all_8_ner_states_covered": "Likely yes (the report is explicitly NER-wide) but exact per-state breakdown not independently confirmed",
+      "event_count": "374 for 2025 alone (annual reports exist for multiple years - total multi-year count not confirmed)",
+      "date_range": "At least 2025 (single-year report confirmed); the programme appears to publish annual seasonal reports, suggesting a multi-year archive may exist",
+      "has_actual_date_per_record": "Likely yes, given per-event rainfall-24h is reported (requires a date), but exact per-record date granularity not independently confirmed",
+      "coordinates_available": "NOT_VERIFIED - not confirmed whether the underlying report/data table includes precise coordinates or only location names",
+      "downloadable": "ACCESS_REQUIRED - the report exists as a compiled document; whether a machine-readable table/shapefile version is downloadable (vs. PDF-only) was not confirmed in this session. The NeSDR repository (which explicitly supports AOI-based download and OGC WFS/WMS services per its own documentation) may host this as a queryable layer, but its exact access level (public vs. 'authorised user' requiring registration) was not confirmed - the site blocked automated access in this session.",
+      "api_availability": "NeSDR advertises OGC-compliant WFS/WMS services in its own documentation - not independently tested/confirmed accessible in this session",
+      "realistic_for_ml_training": "POTENTIALLY HIGH VALUE - this is the most geographically targeted source found, and uniquely already includes a rainfall-event pairing. Strongly recommended as the first manual follow-up: contact NESAC/NER-DRR directly or attempt the NeSDR portal from a regular browser (this session's automated access was blocked by bot detection, not necessarily a real access restriction).",
+      "limitations": [
+        "Could not confirm machine-readable format (vs. PDF report) in this session",
+        "Could not confirm exact coordinate precision per event",
+        "NeSDR portal blocked automated fetch attempts (bot detection) - needs manual browser access or direct contact with NESAC to determine real accessibility"
+      ]
+    },
+    {
+      "dataset_name": "NRSC/ISRO Landslide Atlas of India (1998-2022) via Bhuvan",
+      "organization": "National Remote Sensing Centre (NRSC), ISRO",
+      "official_url": "https://bhuvan-app1.nrsc.gov.in/disaster/usrtasks/landslide/landslide.php",
+      "verification_status": "VERIFIED_LIVE (from this project's Phase 1 research, reused here, not re-verified)",
+      "verification_note": "Already investigated in Phase 1 of this project: confirmed the public WFS endpoint for this data is explicitly disabled ('Service WFS is disabled' - live-fetched error response), and the public interface is an interactive map 'Identify Features' click-tool covering all 8 NER states individually for 2014/2017/2023 seasons, not a bulk-downloadable dataset.",
+      "all_8_ner_states_covered": "Yes, by region (confirmed each NER state individually listed in the interactive tool), but NOT bulk-accessible",
+      "event_count": "~80,000 nationally (per NRSC's own published figures), NER-specific count not accessible via bulk download",
+      "has_actual_date_per_record": "Seasonal only (2014/2017/2023 season, not per-event exact date)",
+      "downloadable": false,
+      "access_restrictions": "WFS confirmed disabled server-side; only interactive map-click (WMS GetFeatureInfo-style) access observed",
+      "realistic_for_ml_training": "NOT FEASIBLE as a bulk source given the confirmed closed WFS - would require either manual point-by-point extraction via the map tool (impractical at scale) or direct contact with NRSC/GSI for a data-sharing arrangement",
+      "limitations": ["Confirmed closed bulk access (Phase 1 finding, re-confirmed applicable here)"]
+    },
+    {
+      "dataset_name": "GSI Bhukosh/Bhusanket landslide incidence database",
+      "organization": "Geological Survey of India (GSI)",
+      "official_url": "https://bhukosh.gsi.gov.in",
+      "verification_status": "VERIFIED_CITED",
+      "verification_note": "Confirmed real and in active research use via a 2026 academic paper (arxiv 2606.23281) that compiled a 19-event dated inventory for the Aizawl/Mizoram region (Sept 2016-May 2025) partly sourced from this database, with an actual data table showing Date + Location + Lat/Long per event (e.g. 'LS17 | 2024-08-28 | Kawnpui | 24.03, 92.62').",
+      "geographic_coverage": "National (India)",
+      "all_8_ner_states_covered": "NOT_VERIFIED at bulk scale - the cited paper only used it for Mizoram specifically, combined with media/government reports, not a demonstrated bulk NER-wide extraction",
+      "downloadable": "ACCESS_REQUIRED - no stable public point-query or bulk API found in this project's Phase 1 research; the cited paper's authors appear to have manually extracted/compiled records, not used a documented bulk API",
+      "realistic_for_ml_training": "Only realistic as a small, manually-compiled supplementary source (as demonstrated by the cited paper's 19-event Mizoram inventory), not as a primary bulk NER-wide source",
+      "limitations": ["No confirmed bulk access method", "Demonstrated use case is small-scale (19 events, one state) via manual compilation"]
+    },
+    {
+      "dataset_name": "Academic small-scale dated inventory - Aizawl/Mizoram landslides 2016-2025",
+      "organization": "Independent researchers (arXiv preprint)",
+      "official_url": "https://arxiv.org/pdf/2606.23281",
+      "verification_status": "VERIFIED_LIVE",
+      "verification_note": "Directly observed real data table rows in the fetched search result, e.g. 'LS17 | 2024-08-28 | Kawnpui | 24.03, 92.62'.",
+      "geographic_coverage": "Aizawl region, Mizoram only - NOT all 8 NER states",
+      "all_8_ner_states_covered": false,
+      "event_count": 19,
+      "date_range": "September 2016 to May 2025",
+      "has_actual_date_per_record": true,
+      "coordinates_available": true,
+      "coordinate_format": "Decimal degrees",
+      "downloadable": "Likely yes via the paper's supplementary material (not independently confirmed - the full table was only partially visible in the fetched snippet)",
+      "realistic_for_ml_training": "Too small and geographically narrow to be a primary source, but valuable as a small, high-confidence verification/validation set for one sub-region",
+      "limitations": ["Single small region only", "Small sample size (19 events)"]
+    }
+  ],
+
+  "part_b_c_d_environmental_datasets": [
+    {
+      "variable": "Rainfall (daily, already integrated)",
+      "source": "NASA POWER",
+      "official_url": "https://power.larc.nasa.gov",
+      "verification_status": "VERIFIED_LIVE (already integrated and tested in this project)",
+      "spatial_resolution": "~50km (MERRA-2 derived grid)",
+      "temporal_resolution": "Daily",
+      "historical_date_range": "1981-present",
+      "latency": "~2 day processing lag (already characterized in this project's weather.py)",
+      "geographic_coverage": "Global, including all 8 NER states",
+      "api_download_method": "Free, keyless REST API - already proven working in this project",
+      "access_requirements": "None",
+      "genuinely_real": true,
+      "can_join_to_events": "Yes, but at coarse ~50km resolution and daily granularity - suboptimal for precise event-triggering analysis (see Part C comparison)",
+      "limitations": ["Coarse spatial resolution relative to the other candidates below", "Daily-only, no sub-daily antecedent-rainfall detail"]
+    },
+    {
+      "variable": "Rainfall (sub-daily, historical, event-grade)",
+      "source": "NASA GPM IMERG",
+      "official_url": "https://gpm.nasa.gov/data/imerg",
+      "verification_status": "VERIFIED_LIVE",
+      "verification_note": "Directly confirmed: 0.1 degree (~10km) resolution, half-hourly native (aggregatable to daily/3-day/7-day), period of record June 2000-present (TRMM-era extension to Jan 1998 in V07B reprocessing).",
+      "spatial_resolution": "0.1 degree (~10km)",
+      "temporal_resolution": "Half-hourly (also available pre-aggregated to daily, 3-day, 7-day)",
+      "historical_date_range": "1998/2000-present",
+      "latency": "Final Run (research-grade, most accurate): ~3-4 month latency. Early/Late runs available with much lower latency for near-real-time use.",
+      "geographic_coverage": "Global (60N-60S full coverage; reduced quality near poles - irrelevant for NER)",
+      "api_download_method": "NASA GES DISC (requires free Earthdata Login) OR AWS Open Data Registry (some IMERG products openly accessible, S3-based, access model varies by exact product - verify per-product before assuming fully keyless)",
+      "access_requirements": "ACCESS_REQUIRED - free NASA Earthdata Login registration for the GES DISC route",
+      "genuinely_real": true,
+      "can_join_to_events": "YES - this is the best-suited rainfall source for event-based ML specifically, due to its fine spatial (10km) and sub-daily temporal resolution, directly supporting antecedent-rainfall features like rainfall_1h/6h/24h as named in Part F.",
+      "limitations": ["Requires registration (one-time, free, not a paywall)", "Final Run has meaningful latency, unsuitable for real-time operational use but fine for historical ML training"]
+    },
+    {
+      "variable": "Rainfall (reanalysis, long historical depth)",
+      "source": "ERA5-Land (Copernicus Climate Data Store)",
+      "official_url": "https://cds.climate.copernicus.eu",
+      "verification_status": "NOT_VERIFIED in this session (well-established public facts, not re-confirmed via direct fetch this session)",
+      "spatial_resolution": "~9km",
+      "temporal_resolution": "Hourly",
+      "historical_date_range": "1950-present",
+      "geographic_coverage": "Global, including NER",
+      "api_download_method": "Copernicus CDS API (cdsapi Python package)",
+      "access_requirements": "ACCESS_REQUIRED - free Copernicus/ECMWF account + API key",
+      "genuinely_real": true,
+      "can_join_to_events": "Yes - longest historical depth of any candidate (back to 1950), hourly resolution suitable for antecedent rainfall",
+      "limitations": ["Reanalysis/model-derived, not direct satellite observation - should be labeled as such, not as a raw rain-gauge/satellite measurement", "Requires registration"]
+    },
+    {
+      "variable": "Rainfall (daily, long record, no registration)",
+      "source": "CHIRPS (Climate Hazards Center InfraRed Precipitation with Station data)",
+      "official_url": "https://www.chc.ucsb.edu/data/chirps",
+      "verification_status": "NOT_VERIFIED in this session (well-established public facts)",
+      "spatial_resolution": "~5km (0.05 degree)",
+      "temporal_resolution": "Daily (also pentad, dekad, monthly)",
+      "historical_date_range": "1981-present",
+      "geographic_coverage": "50S-50N (covers all of India/NER)",
+      "api_download_method": "Direct HTTPS/FTP download, no registration",
+      "access_requirements": "None",
+      "genuinely_real": true,
+      "can_join_to_events": "Yes - good balance of resolution, record length, and zero-friction access; strong candidate for the STATIC long-term rainfall climatology feature (RnSum_mean) flagged as missing in Phase 5B, separate from the dynamic event-join use case",
+      "limitations": ["Daily-only (no sub-daily detail, unlike IMERG)"]
+    },
+    {
+      "variable": "Rainfall - India-specific official",
+      "source": "IMD (India Meteorological Department) gridded rainfall",
+      "official_url": "Via IMD Pune NDC portal",
+      "verification_status": "NOT_VERIFIED in this session",
+      "access_requirements": "ACCESS_REQUIRED - typically requires registration via IMD's data portal; some higher-resolution products have historically required formal request/payment",
+      "genuinely_real": true,
+      "can_join_to_events": "Potentially the most locally authoritative source, but access friction is higher and was not independently confirmed in this session",
+      "limitations": ["Access process not independently verified this session - flagged for manual follow-up"]
+    },
+    {
+      "variable": "Soil moisture (already integrated)",
+      "source": "NASA POWER GWETTOP (MERRA-2 reanalysis)",
+      "verification_status": "VERIFIED_LIVE (already integrated and tested in this project)",
+      "data_type_label": "Reanalysis/land-surface-model output - explicitly NOT a satellite observation, NOT an IoT sensor (already correctly labeled this way in this project's services/soil_moisture.py)",
+      "spatial_resolution": "~50km",
+      "temporal_resolution": "Daily",
+      "historical_date_range": "1981-present",
+      "can_join_to_events": "Yes, same coarse-resolution caveat as POWER rainfall above",
+      "limitations": ["Coarse resolution", "Model-derived, not a direct measurement"]
+    },
+    {
+      "variable": "Soil moisture (satellite observation)",
+      "source": "NASA SMAP",
+      "official_url": "https://smap.jpl.nasa.gov",
+      "verification_status": "NOT_VERIFIED in this session (well-established public facts)",
+      "data_type_label": "Satellite observation/retrieval (L-band radiometer) - genuinely a different data type than reanalysis, more directly a 'measurement'",
+      "spatial_resolution": "9km (L3/L4 enhanced products) or 36km (native radiometer)",
+      "temporal_resolution": "1-3 day repeat, daily composite products available",
+      "historical_date_range": "2015-present",
+      "api_download_method": "NASA Earthdata (NSIDC DAAC) or AppEEARS extraction tool",
+      "access_requirements": "ACCESS_REQUIRED - free NASA Earthdata Login",
+      "genuinely_real": true,
+      "can_join_to_events": "Yes, for events from 2015 onward only - a real limitation for any events before 2015",
+      "limitations": ["Only covers 2015-present - excludes older events", "Coarser than IMERG's rainfall resolution"]
+    },
+    {
+      "variable": "Soil moisture (reanalysis, longer record)",
+      "source": "ERA5-Land volumetric soil water",
+      "verification_status": "NOT_VERIFIED in this session",
+      "data_type_label": "Reanalysis/model output, NOT satellite observation",
+      "historical_date_range": "1950-present",
+      "can_join_to_events": "Yes, longest record of any soil moisture candidate, but model-derived not observed",
+      "limitations": ["Same CDS API registration requirement as ERA5-Land rainfall above"]
+    }
+  ],
+
+  "part_e_existing_gpkg_assessment": {
+    "can_the_existing_gpkg_be_reused_for_the_dynamic_model": "NO, not for the event-date-linked part.",
+    "reasoning": "Per Phase 3's methodology audit (already completed and authoritative - re-read, not re-derived here): the 124,553 rows are slope-unit polygons with a STATIC binary presence/absence label (y), not individual dated events. The audit explicitly found no verified date field in the inspected layers. The GeoPackage can supply STATIC terrain/environmental predisposing features (elevation, slope, lithology, etc. - already used in the static model), but cannot supply the DATED landslide occurrences the dynamic model fundamentally requires.",
+    "what_can_be_reused": "Static terrain/environmental covariates (per Phase 5B's audit) for the LOCATIONS of known landslide-containing slope units COULD inform spatial context for a dynamic model, but not the temporal/event-date dimension, which must come from Part A's sources instead."
+  },
+
+  "part_i_feasibility": "PARTIALLY_FEASIBLE",
+  "feasibility_reasoning": "Real, verified, dated, coordinate-level landslide event data for India/NER DOES exist and is accessible without cost (COOLR, confirmed 1,735 real India events with a live-verified field schema and API). Real historical rainfall at a resolution suitable for event-triggering analysis also exists and is accessible (IMERG, CHIRPS - the latter with zero registration friction). What is NOT yet confirmed: (1) the exact NER-specific subset of COOLR's event count (blocked by this session's own tool limits, not a real data-access barrier - trivially resolvable with a live query), (2) whether NESAC's more geographically-precise NER inventory is machine-readable or PDF-only, (3) soil moisture before 2015 is reanalysis-only (SMAP's real gap), not satellite-observed. None of these are fatal - they are concrete, scoped follow-up actions, not fundamental blockers.",
+
+  "final_decision": "PARTIALLY_FEASIBLE",
+  "recommended_next_step": "Run a live, geometry-filtered query against the COOLR REST API (https://maps.nccs.nasa.gov/mapping/rest/services/landslide_viewer/Landslide_Points/MapServer/0/query) with a bounding box covering the 8 NER states, to get the real NER-specific event count and confirm date/coordinate completeness, before any dataset construction begins."
+}

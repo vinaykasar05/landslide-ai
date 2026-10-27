@@ -1,0 +1,111 @@
+{
+  "generated_at": "2026-10-05",
+  "scope": "Research/audit only. No model trained, no frontend/backend/model changes, no synthetic events created.",
+  "coolr_status": "Marked INACCESSIBLE per explicit instruction - user's own machine timed out after 90s querying https://maps.nccs.nasa.gov/mapping/rest/services/landslide_viewer/Landslide_Points/MapServer/0. Not treated as downloaded or used as a data source anywhere in this report. Note for context only: this assistant's own session separately confirmed the service was live and unauthenticated when tested in Phase 6B - the user's timeout may reflect a network/firewall condition specific to their environment rather than a service outage, but this is NOT asserted as fact and does not change COOLR's current INACCESSIBLE classification for this phase.",
+
+  "status_classifications_used": ["READY_FOR_EXTRACTION", "READY_WITH_MANUAL_ACCESS", "VISUAL_ONLY", "INACCESSIBLE", "NOT_SUITABLE"],
+
+  "sources_audited": [
+    {
+      "source_name": "NASA COOLR (Landslide Points/Polygons)",
+      "organization": "NASA GSFC/NCCS",
+      "url": "https://maps.nccs.nasa.gov/mapping/rest/services/landslide_viewer/Landslide_Points/MapServer",
+      "access_status": "INACCESSIBLE",
+      "verification_method": "User-reported direct test from their own machine: 90-second timeout",
+      "notes": "Per explicit instruction, not used as a source in this phase regardless of this session's own earlier successful verification (Phase 6B) - that finding is noted only as context, not as grounds to treat COOLR as available now."
+    },
+    {
+      "source_name": "NRSC/ISRO Landslide Atlas (Bhuvan seasonal/event-based/route-wise inventory)",
+      "organization": "National Remote Sensing Centre (NRSC), ISRO",
+      "dataset_product_name": "Landslide Atlas of India, 1998-2022 (seasonal inventory: 2014, 2017 seasons; also event-based and route-wise inventories)",
+      "url": "https://bhuvan-app1.nrsc.gov.in/disaster/usrtasks/landslide/landslide.php",
+      "geographic_coverage": "17 states + 2 UTs including all NER states individually listed",
+      "date_range": "1998-2022 (seasonal: 2014 and 2017 specifically)",
+      "has_actual_dates_per_record": "Seasonal only, not per-event exact date",
+      "coordinates_available": "Visible via interactive map click, not bulk-extractable",
+      "all_8_ner_states_covered": true,
+      "record_count": "~80,000 nationally (NRSC's own published figure), NER-specific subset not accessible",
+      "downloadable": false,
+      "api_access": "VERIFIED NONE - WFS endpoint explicitly returns 'Service WFS is disabled' (live-tested in this project's Phase 1, re-cited here, not re-tested this session since the finding was already definitive)",
+      "registration_required": "N/A - not an access-credential issue, the service is architecturally closed",
+      "file_format": "None - interactive web map 'Identify Features' tool only",
+      "license_restrictions": "Not applicable - no download exists to license",
+      "realistic_for_ml_training": false,
+      "access_status": "VISUAL_ONLY",
+      "exact_steps_required": "None available - bulk extraction is not technically possible via any currently open channel. Only path would be a formal written request/data-sharing agreement directly with NRSC/ISRO, not attempted in this research phase."
+    },
+    {
+      "source_name": "NESAC Seasonal Landslide Inventory for NER (annual technical reports)",
+      "organization": "North Eastern Space Applications Centre (NESAC), NER-DRR programme",
+      "dataset_product_name": "e.g. 'Seasonal landslide inventory for the North Eastern Region (NER) - 2023', Document No. NESAC-SR-304-2023; also NER-2021 (NESAC-SR-277-2022), NER-2025, and others",
+      "url": "https://www.nerdrr.gov.in (report hosting), https://nesac.gov.in (parent agency)",
+      "geographic_coverage": "NER-specific (all 8 states, by design of the programme)",
+      "date_range": "At least 2021-2025 confirmed to exist as separate annual reports (multiple distinct document numbers cited in real research)",
+      "has_actual_dates_per_record": "Likely yes at a per-event level (the 2025 report is confirmed to include 24h pre-event rainfall per event, which requires a date) - not independently confirmed for every year's report",
+      "coordinates_available": "Not confirmed - reports describe 'location' narratively in cited excerpts; precise coordinate fields not confirmed",
+      "all_8_ner_states_covered": true,
+      "record_count": "374 for 2025 alone (confirmed); other years' counts not confirmed",
+      "downloadable": "ACCESS_REQUIRED - manual browser access only",
+      "api_access": "VERIFIED NONE for automated/programmatic access",
+      "verification_method_for_robots_block": "Direct web_fetch attempt in this session returned ROBOTS_DISALLOWED - 'Site disallows automated access' - a genuine, checkable restriction (robots.txt), not a guess or a transient failure",
+      "registration_required": "Not confirmed to require registration for a human visiting the site directly in a browser - the block observed is specifically against automated/bot access",
+      "file_format": "PDF technical report (confirmed by document-number citation format in peer-reviewed literature); whether a machine-readable table/shapefile companion exists was not confirmed",
+      "license_restrictions": "Not confirmed - government technical report, likely citable with attribution per standard practice, not independently verified",
+      "realistic_for_ml_training": "YES, but only after manual PDF acquisition and manual/semi-automated table extraction - confirmed genuinely used this way by real peer-reviewed research (Badavath, Kumar & Sahoo 2025, Landslides journal, cited this exact NESAC-SR-304-2023 report as their data source)",
+      "access_status": "READY_WITH_MANUAL_ACCESS",
+      "exact_steps_required": [
+        "1. Open https://www.nerdrr.gov.in in a standard web browser (not an automated tool - this was specifically what was blocked)",
+        "2. Locate the Seasonal Landslide Inventory for NER reports (multiple years confirmed to exist: 2021, 2023, 2025 at minimum)",
+        "3. Download each year's PDF report",
+        "4. Manually inspect whether the PDF contains a structured per-event table (date, location, coordinates if any, rainfall) or only narrative/summary text",
+        "5. Report back the actual PDF structure so a table-extraction approach (manual transcription or PDF-table-extraction tooling) can be planned in a follow-up phase"
+      ]
+    },
+    {
+      "source_name": "GSI Bhukosh/Bhusanket landslide incidence database",
+      "organization": "Geological Survey of India (GSI)",
+      "url": "https://bhukosh.gsi.gov.in, https://bhusanket.gsi.gov.in",
+      "geographic_coverage": "National",
+      "all_8_ner_states_covered": "Not verified at bulk scale",
+      "downloadable": false,
+      "api_access": "VERIFIED NONE found (reused from Phase 1/6A research - no stable public API located across multiple research passes)",
+      "record_count": "GSI's own published national figure: ~91,000 historical landslides via remote sensing + field-based sources (per a government parliamentary answer found this session) - NER-specific subset not accessible",
+      "realistic_for_ml_training": "Only as a small, manually-compiled supplementary source (demonstrated real use: a 19-event Mizoram-specific academic inventory partly sourced from this database)",
+      "access_status": "VISUAL_ONLY",
+      "exact_steps_required": "Would require direct formal contact with GSI for a data-sharing arrangement - no self-service bulk access channel found"
+    },
+    {
+      "source_name": "ASDMA (Assam State Disaster Management Authority) Landslide Damage Report",
+      "organization": "Government of Assam",
+      "url": "https://asdma.assam.gov.in/latest/landslide-damage-report-assam",
+      "verification_method": "Directly found via search, real downloadable PDF confirmed (landslide_report_02.06.2020.pdf, 336KB)",
+      "geographic_coverage": "Assam only - NOT all 8 NER states",
+      "all_8_ner_states_covered": false,
+      "date_range": "Single report, dated 02.06.2020 - not a multi-year inventory",
+      "downloadable": true,
+      "file_format": "PDF",
+      "realistic_for_ml_training": "Limited - single state, single report, format/structure not confirmed (likely narrative damage report, not a structured event table)",
+      "access_status": "VISUAL_ONLY",
+      "notes": "Only one of 8 target states covered; would need to repeat this search for the other 7 states' DM authorities, not completed in this pass given no evidence this approach scales to a full NER inventory"
+    },
+    {
+      "source_name": "Academic regional inventories (Mizoram 778-event ML-validated inventory; Aizawl 19-event inventory from Phase 6A)",
+      "organization": "Independent researchers",
+      "verification_method": "Directly found via search: a real peer-reviewed study explicitly states 'The landslide inventory, consisting of 778 past events, was split into 70% training and 30% testing datasets for model development and evaluation' for Mizoram",
+      "geographic_coverage": "Mizoram only (both inventories) - NOT all 8 NER states",
+      "all_8_ner_states_covered": false,
+      "realistic_for_ml_training": "Proven real-world use (778-event inventory was itself used to train and validate a real ML susceptibility model), but single-state only",
+      "access_status": "VISUAL_ONLY - exact download/access method for the 778-event inventory itself not confirmed from the available citation; would require obtaining the full paper and its data availability statement",
+      "notes": "Valuable as a potential validation/enrichment source for Mizoram specifically, not as a primary NER-wide source"
+    }
+  ],
+
+  "final_decision": {
+    "A_real_dated_dataset_extractable_now": false,
+    "B_which_source": null,
+    "C_strongest_candidate": "NESAC Seasonal Landslide Inventory for NER (annual technical reports, e.g. NESAC-SR-304-2023)",
+    "C_reasoning": "NER-specific by design, confirmed real with specific document numbers, actively cited as a genuine data source in peer-reviewed research, already pairs events with pre-event GPM rainfall. The only barrier is that automated access is blocked (robots.txt, directly verified) - a human can access it directly, and real researchers have already successfully used it this way.",
+    "C_exact_manual_access_required": "A human must visit https://www.nerdrr.gov.in directly in a browser, locate and download the available annual Seasonal Landslide Inventory PDF reports, and report back their actual internal structure (table vs. narrative, coordinate precision).",
+    "D_next_concrete_action": "Manually download the NESAC NER seasonal inventory reports (2021, 2023, 2025 confirmed to exist - check for others) from nerdrr.gov.in or nesac.gov.in in a standard browser, and share what their actual content/structure looks like. This determines whether Phase 6D can build a PDF-table-extraction script or whether further manual transcription is needed."
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "model_file": "landslide_model.pkl",
+  "model_type": "RandomForestClassifier",
+  "hyperparameters": {"n_estimators": 200, "max_depth": 8, "class_weight": "balanced"},
+  "features": ["rain_24h", "rain_72h", "rain_7d"],
+  "feature_units": "mm (NASA POWER PRECTOTCORR daily precipitation; 24h = latest daily value, 72h = sum of last 3 daily values, 7d = sum over the fetch window)",
+  "classes": {"0": "no landslide event", "1": "landslide event"},
+  "positive_class": 1,
+  "risk_score_definition": "predict_proba(X)[:, index_of_class_1] = model-estimated P(landslide event)",
+  "trained_with_sklearn": "1.8.0",
+  "training_data": {
+    "provenance": "real",
+    "source": "data/fetch_landslide_data.py -> data/landslide_training_data.csv",
+    "description": "Positive examples (label=1): real landslide events from NASA's Global Landslide Catalog (GLC), filtered to India, each paired with real cumulative rainfall (rain_24h/72h/7d) from the NASA POWER API for the days leading up to the event. Negative examples (label=0): the same real locations, on random non-event dates (2015-2026), with real rainfall from NASA POWER for those dates.",
+    "rows": 2515,
+    "label_balance": {"1_landslide": 1264, "0_no_landslide": 1251},
+    "trained_on": "2026-10-22",
+    "caveat": "Rainfall-only model (3 features: rain_24h, rain_72h, rain_7d). Real landslides also depend on slope, soil saturation, geology, and land cover, none of which are inputs to this classifier, so its predict_proba output should be read as 'how closely does this rainfall pattern resemble rainfall that historically preceded a landslide in this region', not a calibrated physical probability. Combine with this project's separate slope_saturation_index (backend/app/services/slope_stability.py) for a fuller risk picture - do not treat this model's output alone as a complete hazard assessment."
+  },
+  "evaluation": {
+    "method": "80/20 train/test split (stratified), random_state=42, evaluated once on the held-out 20%",
+    "test_set_size": 503,
+    "accuracy": 0.77,
+    "precision": {"no_landslide": 0.81, "landslide": 0.74},
+    "recall": {"no_landslide": 0.70, "landslide": 0.83},
+    "f1_score": {"no_landslide": 0.75, "landslide": 0.78},
+    "confusion_matrix": {"true_no_pred_no": 174, "true_no_pred_landslide": 76, "true_landslide_pred_no": 42, "true_landslide_pred_landslide": 211},
+    "feature_importances": {"rain_24h": 0.321, "rain_72h": 0.345, "rain_7d": 0.333},
+    "notes": "Recall on the landslide class (0.83) is higher than on no-landslide (0.70) - the model is biased toward flagging risk rather than missing it, which is the right trade-off for an early-warning system (a false alarm is cheaper than a missed landslide). The roughly-equal feature importances indicate the model uses short-term and cumulative rainfall together rather than relying on a single window."
+  }
+}
